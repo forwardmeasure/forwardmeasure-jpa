@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/forwardmeasure-jpa-contract-tests.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <include file="db/changelog/forwardmeasure-jpa.xml" />
+
+    <changeSet id="contract-001-owned-entity" author="forwardmeasure">
+        <createSequence
+            sequenceName="jpa_contract_owned_entity_id_seq"
+            startValue="1"
+            incrementBy="1" />
+        <createTable tableName="jpa_contract_owned_entity">
+            <column name="id" type="BIGINT">
+                <constraints
+                    primaryKey="true"
+                    primaryKeyName="pk_jpa_contract_owned_entity"
+                    nullable="false" />
+            </column>
+            <column name="version" type="INTEGER">
+                <constraints nullable="false" />
+            </column>
+            <column name="uuid" type="UUID">
+                <constraints nullable="false" />
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false" />
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false" />
+            </column>
+            <column name="owner_id" type="BIGINT">
+                <constraints nullable="false" />
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+        </createTable>
+        <addUniqueConstraint
+            tableName="jpa_contract_owned_entity"
+            columnNames="uuid"
+            constraintName="uk_jpa_contract_owned_entity_uuid" />
+        <addForeignKeyConstraint
+            baseTableName="jpa_contract_owned_entity"
+            baseColumnNames="owner_id"
+            referencedTableName="actor"
+            referencedColumnNames="id"
+            constraintName="fk_jpa_contract_owned_entity_owner"
+            onDelete="RESTRICT" />
+    </changeSet>
+
+    <changeSet
+        id="contract-002-sequence-ownership"
+        author="forwardmeasure"
+        dbms="postgresql">
+        <sql>
+            ALTER SEQUENCE jpa_contract_owned_entity_id_seq
+            OWNED BY jpa_contract_owned_entity.id;
+        </sql>
+    </changeSet>
+</databaseChangeLog>

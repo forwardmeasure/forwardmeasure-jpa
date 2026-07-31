@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/data-fabric-core-changelog.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="core-001-create-sequences" author="pn@forwardmeasure.com">
+        <comment>Create sequences for core entities (per tenant schema)</comment>
+        <createSequence sequenceName="actor_id_seq" startValue="1" incrementBy="1" />
+    </changeSet>
+
+    <changeSet id="core-010-create-actor" author="pn@forwardmeasure.com">
+        <comment>Create Actor table (per tenant schema) - represents users/service accounts</comment>
+        <createTable tableName="actor">
+            <column name="id" type="BIGINT">
+                <constraints primaryKey="true" primaryKeyName="pk_actor" nullable="false" />
+            </column>
+            <column name="version" type="INTEGER">
+                <constraints nullable="false" />
+            </column>
+            <column name="uuid" type="UUID">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_actor_uuid" />
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false" />
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false" />
+            </column>
+            <column name="subject_identifier" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="identity_type" type="VARCHAR(64)">
+                <constraints nullable="false" />
+            </column>
+            <column name="email" type="VARCHAR(255)" />
+            <column name="identity_provider" type="VARCHAR(255)" />
+        </createTable>
+        <addUniqueConstraint
+            tableName="actor"
+            columnNames="identity_provider,subject_identifier"
+            constraintName="uk_actor_identity_provider_subject_identifier" />
+    </changeSet>
+
+    <changeSet
+        id="core-011-actor-sequence-ownership"
+        author="pn@forwardmeasure.com"
+        dbms="postgresql">
+        <comment>Set sequence ownership for actor table</comment>
+        <sql>ALTER SEQUENCE actor_id_seq OWNED BY actor.id;</sql>
+    </changeSet>
+</databaseChangeLog>
