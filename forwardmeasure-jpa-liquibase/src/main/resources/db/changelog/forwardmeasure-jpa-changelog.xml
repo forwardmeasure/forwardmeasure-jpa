@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/forwardmeasure-jpa-changelog.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet
+        id="forwardmeasure-jpa-020-actor-database-timestamps"
+        author="forwardmeasure">
+        <comment>
+            Actor is an identity root rather than an AuditedEntity. Defaults
+            preserve compatibility with the existing non-null timestamp
+            columns while allowing the new Actor mapping to omit them.
+        </comment>
+        <addDefaultValue
+            tableName="actor"
+            columnName="created_at"
+            columnDataType="TIMESTAMP WITH TIME ZONE"
+            defaultValueComputed="CURRENT_TIMESTAMP" />
+        <addDefaultValue
+            tableName="actor"
+            columnName="updated_at"
+            columnDataType="TIMESTAMP WITH TIME ZONE"
+            defaultValueComputed="CURRENT_TIMESTAMP" />
+    </changeSet>
+
+    <changeSet
+        id="forwardmeasure-jpa-021-null-provider-actor-identity"
+        author="forwardmeasure"
+        dbms="postgresql">
+        <comment>
+            PostgreSQL unique constraints treat nulls as distinct. Preserve a
+            single actor identity when the legacy-compatible identity provider
+            is null.
+        </comment>
+        <sql>
+            CREATE UNIQUE INDEX uk_actor_null_provider_subject_identifier
+            ON actor (subject_identifier)
+            WHERE identity_provider IS NULL;
+        </sql>
+    </changeSet>
+</databaseChangeLog>
