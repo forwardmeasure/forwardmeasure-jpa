@@ -30,3 +30,13 @@ jobs:
 
       - name: Verify
         run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Verify Consumer BOM
+        run: |
+          test -s forwardmeasure-jpa-bom/.flattened-pom.xml
+          grep -q '<dependencyManagement>' \
+            forwardmeasure-jpa-bom/.flattened-pom.xml
+          grep -q '<artifactId>forwardmeasure-jpa-core</artifactId>' \
+            forwardmeasure-jpa-bom/.flattened-pom.xml
+          grep -q '<artifactId>forwardmeasure-jpa-quarkus</artifactId>' \
+            forwardmeasure-jpa-bom/.flattened-pom.xml

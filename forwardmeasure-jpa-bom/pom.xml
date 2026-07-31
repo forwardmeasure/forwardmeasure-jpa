@@ -61,4 +61,21 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <configuration>
+                    <!--
+                      A consumer BOM is its dependencyManagement. The parent
+                      OSSRH mode intentionally strips that section, so this
+                      module must use the plugin's BOM-specific model.
+                    -->
+                    <flattenMode>bom</flattenMode>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
