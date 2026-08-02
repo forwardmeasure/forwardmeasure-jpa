@@ -105,3 +105,4 @@ mlops-devops/terraform/auth
 **/*derby.log*
 headlamp/
 mvn.out
+mvn-*.out
