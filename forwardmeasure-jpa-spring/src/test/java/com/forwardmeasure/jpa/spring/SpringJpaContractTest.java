@@ -4,14 +4,20 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.forwardmeasure.jpa.contract.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.ContractOwnedEntityService;
 import com.forwardmeasure.jpa.contract.JpaPersistenceContract;
-import com.forwardmeasure.jpa.identity.Actor;
+import com.forwardmeasure.jpa.contract.JpaServiceContract;
+import com.forwardmeasure.jpa.identity.entity.Actor;
+import com.forwardmeasure.jpa.identity.repository.JpaOwnedEntityRepository;
+import com.forwardmeasure.jpa.identity.service.ActorService;
+import com.forwardmeasure.jpa.locking.entity.SystemLock;
+import com.forwardmeasure.jpa.locking.SystemLockService;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
-import com.forwardmeasure.jpa.testcontainers.PostgreSqlTestDatabase;
+import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.UUID;
@@ -31,14 +37,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 @SpringBootTest(classes = SpringJpaContractTest.TestApplication.class)
 class SpringJpaContractTest {
 
-    private static final PostgreSqlTestDatabase DATABASE =
-            new PostgreSqlTestDatabase().start();
+    private static final PostgreSqlTestContainer DATABASE =
+            new PostgreSqlTestContainer().start();
     private static final TenantSchema TENANT = TenantSchema.forTenant(
             new TenantId(UUID.fromString(
                     "20000000-0000-0000-0000-000000000001")));
 
     static {
-        DATABASE.createSchema(TENANT);
+        DATABASE.createSchema(TENANT.value());
         new TenantSchemaMigrator(
                 DATABASE.dataSource(),
                 "db/changelog/forwardmeasure-jpa-contract-tests.xml",
@@ -48,7 +54,7 @@ class SpringJpaContractTest {
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry properties) {
-        properties.add("spring.datasource.url", DATABASE::jdbcUrl);
+        properties.add("spring.datasource.url", DATABASE::hostJdbcUrl);
         properties.add("spring.datasource.username", DATABASE::username);
         properties.add("spring.datasource.password", DATABASE::password);
         properties.add("spring.datasource.driver-class-name",
@@ -67,6 +73,12 @@ class SpringJpaContractTest {
     SpringActorRepository actors;
 
     @Autowired
+    ActorService actorService;
+
+    @Autowired
+    SystemLockService systemLocks;
+
+    @Autowired
     MultiTenantConnectionProvider<String> tenantConnections;
 
     @PersistenceContext
@@ -75,8 +87,20 @@ class SpringJpaContractTest {
     @Test
     void executesPortableContractAndSpringDataRepository() {
         try (TenantScope.Scope ignored = tenantScope.open(TENANT)) {
-            var result = transactions.execute(status ->
-                    JpaPersistenceContract.verify(entityManager));
+            var result = transactions.execute(status -> {
+                var repositoryResult =
+                        JpaPersistenceContract.verify(entityManager);
+                var serviceResult = JpaServiceContract.verify(
+                        actorService,
+                        new ContractOwnedEntityService(
+                                new JpaOwnedEntityRepository<>(
+                                        ContractOwnedEntity.class,
+                                        entityManager)));
+                systemLocks.acquire("contract-lock");
+                assertTrue(actorService.findByUuid(
+                        serviceResult.actorUuid()).isPresent());
+                return repositoryResult;
+            });
             assertTrue(actors.findByUuid(result.actorUuid()).isPresent());
         }
     }
@@ -84,6 +108,9 @@ class SpringJpaContractTest {
     @Test
     void unscopedRepositoryAccessFailsClosed() {
         assertThrows(RuntimeException.class, actors::count);
+        assertThrows(
+                org.springframework.transaction.IllegalTransactionStateException.class,
+                () -> systemLocks.acquire("contract-lock"));
     }
 
     @Test
@@ -111,7 +138,10 @@ class SpringJpaContractTest {
 
     @SpringBootConfiguration
     @EnableAutoConfiguration
-    @EntityScan(basePackageClasses = {Actor.class, ContractOwnedEntity.class})
+    @EntityScan(basePackageClasses = {
+            Actor.class,
+            SystemLock.class,
+            ContractOwnedEntity.class})
     @EnableJpaRepositories(basePackageClasses = SpringActorRepository.class)
     static class TestApplication {
     }

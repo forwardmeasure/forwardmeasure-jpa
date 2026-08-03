@@ -10,7 +10,19 @@ must not race one another by automatically applying the same changelog.
 - `db/changelog/forwardmeasure-jpa.xml`;
 - the foundational actor schema; and
 - `TenantSchemaMigrator` for applying a selected changelog to one validated
-  tenant schema.
+tenant schema.
+
+`TenantSchemaMigrator` is deliberately a thin adapter over the independent
+`forwardmeasure-database-migrations` API and Liquibase provider. The generic
+project owns connection acquisition, target restoration, validation, status,
+contexts, labels, parameters and provider execution. This JPA project owns only
+its stable changelog fragments and the conversion from `TenantSchema` to an
+explicit database target.
+
+`forwardmeasure-jpa-locking` independently packages
+`db/changelog/forwardmeasure-jpa-locking.xml`. Consumers include it only when
+they use named transaction-scoped locks. Application changelogs own the lock
+row seed data because lock names are domain contracts, not foundation data.
 
 The platform migration application remains responsible for discovering
 tenants, ordering platform and application changelogs, recording operational

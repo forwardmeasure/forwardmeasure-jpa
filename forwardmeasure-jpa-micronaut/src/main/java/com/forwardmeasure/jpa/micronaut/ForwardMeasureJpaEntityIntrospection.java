@@ -9,7 +9,9 @@ import jakarta.persistence.Entity;
  * module.
  */
 @Introspected(
-        packages = "com.forwardmeasure.jpa.identity",
+        packages = {
+                "com.forwardmeasure.jpa.identity.entity",
+                "com.forwardmeasure.jpa.locking.entity"},
         includedAnnotations = Entity.class)
 final class ForwardMeasureJpaEntityIntrospection {
 

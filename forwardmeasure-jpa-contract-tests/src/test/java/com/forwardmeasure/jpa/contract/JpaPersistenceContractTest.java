@@ -3,28 +3,28 @@ package com.forwardmeasure.jpa.contract;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.forwardmeasure.jpa.identity.Actor;
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
+import com.forwardmeasure.jpa.identity.entity.Actor;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
-import com.forwardmeasure.jpa.testcontainers.PostgreSqlTestDatabase;
-import com.forwardmeasure.jpa.testcontainers.PostgreSqlTestDatabaseExtension;
+import com.forwardmeasure.testcontainers.junit.postgresql.WithPostgreSqlContainer;
+import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import jakarta.persistence.OptimisticLockException;
 import java.util.Map;
 import java.util.UUID;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-@ExtendWith(PostgreSqlTestDatabaseExtension.class)
+@WithPostgreSqlContainer(databaseName = "jpa_persistence_contract")
 class JpaPersistenceContractTest {
 
     @Test
     void mappingMatchesMigrationsAndEnforcesOptimisticLocking(
-            PostgreSqlTestDatabase database) {
+            PostgreSqlTestContainer database) {
         TenantSchema schema = schema();
-        database.createSchema(schema);
+        database.createSchema(schema.value());
         migrate(database, schema);
 
         try (SessionFactory sessions = sessions(database, schema)) {
@@ -55,11 +55,11 @@ class JpaPersistenceContractTest {
 
     @Test
     void tenantSchemasHaveIndependentIdentityAndOwnedData(
-            PostgreSqlTestDatabase database) {
+            PostgreSqlTestContainer database) {
         TenantSchema first = schema();
         TenantSchema second = schema();
-        database.createSchema(first);
-        database.createSchema(second);
+        database.createSchema(first.value());
+        database.createSchema(second.value());
         migrate(database, first);
         migrate(database, second);
 
@@ -92,7 +92,7 @@ class JpaPersistenceContractTest {
     }
 
     private void migrate(
-            PostgreSqlTestDatabase database, TenantSchema schema) {
+            PostgreSqlTestContainer database, TenantSchema schema) {
         new TenantSchemaMigrator(
                 database.dataSource(),
                 "db/changelog/forwardmeasure-jpa-contract-tests.xml",
@@ -101,12 +101,12 @@ class JpaPersistenceContractTest {
     }
 
     private SessionFactory sessions(
-            PostgreSqlTestDatabase database, TenantSchema schema) {
+            PostgreSqlTestContainer database, TenantSchema schema) {
         Configuration configuration = new Configuration();
         configuration.addAnnotatedClass(Actor.class);
         configuration.addAnnotatedClass(ContractOwnedEntity.class);
         Map<String, String> properties = Map.of(
-                "jakarta.persistence.jdbc.url", database.jdbcUrl(),
+                "jakarta.persistence.jdbc.url", database.hostJdbcUrl(),
                 "jakarta.persistence.jdbc.user", database.username(),
                 "jakarta.persistence.jdbc.password", database.password(),
                 "jakarta.persistence.jdbc.driver", "org.postgresql.Driver",

@@ -1,8 +1,8 @@
 package com.forwardmeasure.jpa.identity.repository;
 
 import com.forwardmeasure.jpa.core.repository.EntityRepository;
-import com.forwardmeasure.jpa.identity.Actor;
-import com.forwardmeasure.jpa.identity.IdentityType;
+import com.forwardmeasure.jpa.identity.entity.Actor;
+import com.forwardmeasure.jpa.identity.entity.IdentityType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

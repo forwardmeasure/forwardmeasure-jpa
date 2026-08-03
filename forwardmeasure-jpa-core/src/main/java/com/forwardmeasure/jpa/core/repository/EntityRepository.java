@@ -1,6 +1,6 @@
 package com.forwardmeasure.jpa.core.repository;
 
-import com.forwardmeasure.jpa.core.AbstractBaseEntity;
+import com.forwardmeasure.jpa.core.entity.AbstractBaseEntity;
 import com.forwardmeasure.jpa.core.query.JpaSpecification;
 import com.forwardmeasure.jpa.core.query.Page;
 import com.forwardmeasure.jpa.core.query.PageRequest;

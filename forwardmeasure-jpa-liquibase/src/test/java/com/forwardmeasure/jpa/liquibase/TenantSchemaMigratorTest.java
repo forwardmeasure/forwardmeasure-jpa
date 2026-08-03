@@ -7,31 +7,36 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
-import com.forwardmeasure.jpa.testcontainers.PostgreSqlTestDatabase;
-import com.forwardmeasure.jpa.testcontainers.PostgreSqlTestDatabaseExtension;
+import com.forwardmeasure.testcontainers.junit.postgresql.WithPostgreSqlContainer;
+import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import java.util.UUID;
 import org.postgresql.ds.PGPoolingDataSource;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-@ExtendWith(PostgreSqlTestDatabaseExtension.class)
+@WithPostgreSqlContainer(databaseName = "jpa_liquibase_contract")
 class TenantSchemaMigratorTest {
 
     @Test
     void migratesEachTenantIndependentlyAndIsIdempotent(
-            PostgreSqlTestDatabase database) throws Exception {
+            PostgreSqlTestContainer database) throws Exception {
         TenantSchema first = TenantSchema.forTenant(
                 new TenantId(UUID.randomUUID()));
         TenantSchema second = TenantSchema.forTenant(
                 new TenantId(UUID.randomUUID()));
-        database.createSchema(first);
-        database.createSchema(second);
+        database.createSchema(first.value());
+        database.createSchema(second.value());
         TenantSchemaMigrator migrator =
                 new TenantSchemaMigrator(database.dataSource());
 
-        migrator.migrate(first);
-        migrator.migrate(first);
+        assertTrue(migrator.validate(first).valid());
+        assertEquals(5L, migrator.status(first).pendingCount());
 
+        var firstMigration = migrator.migrate(first);
+        var repeatedMigration = migrator.migrate(first);
+
+        assertEquals(5L, firstMigration.appliedChangeCount());
+        assertEquals(0L, repeatedMigration.appliedChangeCount());
+        assertTrue(repeatedMigration.status().current());
         assertTrue(tableExists(database, first, "actor"));
         assertFalse(tableExists(database, second, "actor"));
         assertEquals(5L, changeSetCount(database, first));
@@ -46,15 +51,15 @@ class TenantSchemaMigratorTest {
     @Test
     @SuppressWarnings("deprecation")
     void resetsPooledConnectionToPublicAfterMigration(
-            PostgreSqlTestDatabase database) throws Exception {
+            PostgreSqlTestContainer database) throws Exception {
         TenantSchema tenant = TenantSchema.forTenant(
                 new TenantId(UUID.randomUUID()));
-        database.createSchema(tenant);
+        database.createSchema(tenant.value());
 
         PGPoolingDataSource pool = new PGPoolingDataSource();
         pool.setDataSourceName(
                 "forwardmeasure-jpa-" + UUID.randomUUID());
-        pool.setUrl(database.jdbcUrl());
+        pool.setUrl(database.hostJdbcUrl());
         pool.setUser(database.username());
         pool.setPassword(database.password());
         pool.setInitialConnections(1);
@@ -72,7 +77,7 @@ class TenantSchemaMigratorTest {
     }
 
     private boolean tableExists(
-            PostgreSqlTestDatabase database,
+            PostgreSqlTestContainer database,
             TenantSchema schema,
             String table) throws Exception {
         try (var connection = database.dataSource().getConnection();
@@ -89,7 +94,7 @@ class TenantSchemaMigratorTest {
     }
 
     private long changeSetCount(
-            PostgreSqlTestDatabase database,
+            PostgreSqlTestContainer database,
             TenantSchema schema) throws Exception {
         try (var connection = database.dataSource().getConnection()) {
             connection.setSchema(schema.value());
@@ -103,7 +108,7 @@ class TenantSchemaMigratorTest {
     }
 
     private void assertNullProviderIdentityIsUnique(
-            PostgreSqlTestDatabase database,
+            PostgreSqlTestContainer database,
             TenantSchema schema) throws Exception {
         String insert = """
                 insert into actor (

@@ -6,9 +6,13 @@ ForwardMeasure services. It provides:
 - portable base, audited, and actor-owned JPA entity models;
 - explicit, fail-closed schema-per-tenant execution scopes;
 - stable, application-owned Liquibase changelog fragments;
-- standard JPA repositories plus Quarkus, Spring Data, and Micronaut Data
-  integrations;
-- reusable Testcontainers infrastructure; and
+- portable application service contracts over standard JPA repositories;
+- explicit entity packages with Lombok-backed models and generated canonical
+  JPA metamodels;
+- Quarkus, Spring Data, and Micronaut Data integrations with native
+  transaction boundaries;
+- transaction-scoped, database-independent named locks;
+- integration with the reusable `forwardmeasure-testcontainers` foundation; and
 - one shared persistence contract executed by every supported framework.
 
 The project targets Java 25. PostgreSQL 18 is the first certified database.
@@ -67,6 +71,41 @@ The scope is nestable, must be closed on its opening thread, and removes its
 `ThreadLocal` when empty. An unscoped persistence operation cannot silently
 fall back to `public`.
 
+Application code depends on a portable service contract, not a repository or
+an `EntityManager`. Domain services extend the matching reusable base and add
+domain-specific operations explicitly:
+
+```java
+public interface EvidenceService
+        extends OwnedEntityService<Evidence, Long> {
+
+    Optional<Evidence> findByExternalReference(String externalReference);
+}
+
+public final class RepositoryEvidenceService
+        extends AbstractOwnedEntityService<
+                Evidence,
+                Long,
+                EvidenceRepository>
+        implements EvidenceService {
+
+    public RepositoryEvidenceService(EvidenceRepository repository) {
+        super(repository);
+    }
+
+    @Override
+    public Optional<Evidence> findByExternalReference(
+            String externalReference) {
+        return repository().findByExternalReference(externalReference);
+    }
+}
+```
+
+The host adapter applies its native transaction annotation to the concrete
+service. HTTP resources, messaging consumers, and workflow processors inject
+`EvidenceService`; only persistence adapters construct or inject its
+repository.
+
 ## Entity Model
 
 - `AbstractBaseEntity` supplies optimistic locking only. It deliberately does
@@ -81,30 +120,55 @@ Actor identities are unique by identity provider and subject identifier.
 DIDs remain an optional higher-level identity integration and are not embedded
 in this persistence foundation.
 
+The JPA foundation also contains no authorization marker interface. Security
+layers adapt stable entity UUIDs and ownership relationships to their own
+resource model instead of coupling every persistent entity to authorization.
+
+## Code Generation
+
+Lombok, Hibernate's JPA metamodel processor, MapStruct, and the Lombok/MapStruct
+binding are centrally versioned in the parent POM. Persistent classes use
+Lombok; canonical metamodel classes such as `Actor_` and `OwnedEntity_` are
+generated at compilation and used by the repository implementations.
+
+MapStruct belongs on mapper interfaces, not entity classes. This repository
+does not own API DTO contracts, so consumer API modules define their DTOs and
+MapStruct mappers. The API artifact versions are also exported by the
+ForwardMeasure JPA BOM; annotation-processor configuration remains owned by
+the consuming build.
+
 ## Modules
 
 | Module | Responsibility |
 | --- | --- |
 | `forwardmeasure-jpa-bom` | Consumer dependency management |
-| `forwardmeasure-jpa-core` | Provider-neutral entity and repository contracts |
-| `forwardmeasure-jpa-identity` | Actor identity and owned entities |
+| `forwardmeasure-jpa-core` | Provider-neutral entities, repositories, and application services |
+| `forwardmeasure-jpa-identity` | Actor identity, owned entities, and ownership services |
+| `forwardmeasure-jpa-locking` | Transaction-scoped named database mutexes |
 | `forwardmeasure-jpa-tenancy` | Tenant identifiers and schema scope |
 | `forwardmeasure-jpa-liquibase` | Foundational database changelogs |
-| `forwardmeasure-jpa-testcontainers` | Reusable real-database test fixtures |
 | `forwardmeasure-jpa-contract-tests` | Adapter compatibility contract |
 | `forwardmeasure-jpa-quarkus` | Quarkus Hibernate ORM/Panache adapter |
 | `forwardmeasure-jpa-spring` | Spring Data JPA adapter |
 | `forwardmeasure-jpa-micronaut` | Micronaut Data JPA adapter |
 
 No framework dependency is exposed by `forwardmeasure-jpa-core`,
-`forwardmeasure-jpa-identity`, or `forwardmeasure-jpa-tenancy`.
+`forwardmeasure-jpa-identity`, `forwardmeasure-jpa-locking`, or
+`forwardmeasure-jpa-tenancy`.
+
+Integration tests consume the external `forwardmeasure-testcontainers`
+PostgreSQL and JUnit artifacts. This repository does not implement or package
+its own container lifecycle.
 
 ## Migrations
 
 `forwardmeasure-jpa-liquibase` packages changelogs but never runs migrations
-automatically. A deployment has exactly one migration owner. That owner
-enumerates tenants and invokes `TenantSchemaMigrator` before application
-workloads use the affected schema.
+automatically. It is a tenancy adapter over
+`forwardmeasure-database-migrations-liquibase`; it does not own JDBC lifecycle
+or Liquibase execution itself. A deployment has exactly one migration owner.
+That owner enumerates tenants and invokes `TenantSchemaMigrator` before
+application workloads use the affected schema. The migrator exposes validation,
+status inspection, and idempotent migration results.
 
 The historical Data Fabric changelog logical path, changeset IDs, and authors
 are retained so an existing database does not replay foundational changesets
@@ -115,11 +179,11 @@ when it adopts this library. See [migration ownership](docs/migrations.md).
 - Quarkus uses its native schema multitenancy SPIs. Applications configure
   `quarkus.hibernate-orm.multitenant=SCHEMA` and include their entity packages.
 - Spring Boot auto-configuration installs the tenant resolver, connection
-  provider, scope, and portable actor repository. Spring Data repository
-  interfaces remain available for native use.
+  provider, scope, portable actor service, and lock service. Spring Data
+  repository interfaces remain infrastructure extension points.
 - Micronaut installs the equivalent services and supplies introspection
-  metadata for the shared `Actor`. Consumer entities must be compiled with
-  Micronaut introspection metadata, as shown in
+  metadata for the shared `Actor` and `SystemLock`. Consumer entities must be
+  compiled with Micronaut introspection metadata, as shown in
   [framework integration](docs/framework-integration.md).
 
 For design boundaries and guarantees, see [architecture](docs/architecture.md).

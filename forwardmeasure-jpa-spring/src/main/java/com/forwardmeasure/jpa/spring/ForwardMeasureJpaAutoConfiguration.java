@@ -2,6 +2,10 @@ package com.forwardmeasure.jpa.spring;
 
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
 import com.forwardmeasure.jpa.identity.repository.JpaActorRepository;
+import com.forwardmeasure.jpa.identity.service.ActorService;
+import com.forwardmeasure.jpa.locking.JpaSystemLockRepository;
+import com.forwardmeasure.jpa.locking.SystemLockRepository;
+import com.forwardmeasure.jpa.locking.SystemLockService;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import com.forwardmeasure.jpa.tenancy.ThreadBoundTenantScope;
 import jakarta.persistence.EntityManager;
@@ -64,5 +68,25 @@ public class ForwardMeasureJpaAutoConfiguration {
     ActorRepository forwardMeasureActorRepository(
             EntityManager entityManager) {
         return new JpaActorRepository(entityManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    ActorService forwardMeasureActorService(ActorRepository repository) {
+        return new SpringActorService(repository);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    SystemLockRepository forwardMeasureSystemLockRepository(
+            EntityManager entityManager) {
+        return new JpaSystemLockRepository(entityManager);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    SystemLockService forwardMeasureSystemLockService(
+            SystemLockRepository repository) {
+        return new SpringSystemLockService(repository);
     }
 }
