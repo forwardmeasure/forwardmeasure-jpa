@@ -1,9 +1,14 @@
 package com.forwardmeasure.jpa.identity.repository;
 
 import com.forwardmeasure.jpa.core.repository.JpaEntityRepository;
-import com.forwardmeasure.jpa.identity.Actor;
-import com.forwardmeasure.jpa.identity.IdentityType;
+import com.forwardmeasure.jpa.identity.entity.Actor;
+import com.forwardmeasure.jpa.identity.entity.Actor_;
+import com.forwardmeasure.jpa.identity.entity.IdentityType;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,11 +25,11 @@ public class JpaActorRepository
     @Override
     public Optional<Actor> findByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return entityManager()
-                .createQuery(
-                        "select actor from Actor actor where actor.uuid = :uuid",
-                        Actor.class)
-                .setParameter("uuid", uuid)
+        CriteriaBuilder builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<Actor> query = builder.createQuery(Actor.class);
+        Root<Actor> actor = query.from(Actor.class);
+        query.select(actor).where(builder.equal(actor.get(Actor_.uuid), uuid));
+        return entityManager().createQuery(query)
                 .getResultStream()
                 .findFirst();
     }
@@ -33,7 +38,15 @@ public class JpaActorRepository
     public Optional<Actor> findByIdentity(
             String identityProvider, String subjectIdentifier) {
         Objects.requireNonNull(subjectIdentifier, "subjectIdentifier");
-        return identityQuery(identityProvider, subjectIdentifier)
+        CriteriaBuilder builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<Actor> query = builder.createQuery(Actor.class);
+        Root<Actor> actor = query.from(Actor.class);
+        query.select(actor).where(identityPredicate(
+                builder,
+                actor,
+                identityProvider,
+                subjectIdentifier));
+        return entityManager().createQuery(query)
                 .getResultStream()
                 .findFirst();
     }
@@ -41,22 +54,22 @@ public class JpaActorRepository
     @Override
     public List<Actor> findByEmail(String email) {
         Objects.requireNonNull(email, "email");
-        return List.copyOf(entityManager()
-                .createQuery(
-                        "select actor from Actor actor where actor.email = :email",
-                        Actor.class)
-                .setParameter("email", email)
+        CriteriaBuilder builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<Actor> query = builder.createQuery(Actor.class);
+        Root<Actor> actor = query.from(Actor.class);
+        query.select(actor).where(builder.equal(actor.get(Actor_.email), email));
+        return List.copyOf(entityManager().createQuery(query)
                 .getResultList());
     }
 
     @Override
     public List<Actor> findByType(IdentityType type) {
         Objects.requireNonNull(type, "type");
-        return List.copyOf(entityManager()
-                .createQuery(
-                        "select actor from Actor actor where actor.type = :type",
-                        Actor.class)
-                .setParameter("type", type)
+        CriteriaBuilder builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<Actor> query = builder.createQuery(Actor.class);
+        Root<Actor> actor = query.from(Actor.class);
+        query.select(actor).where(builder.equal(actor.get(Actor_.type), type));
+        return List.copyOf(entityManager().createQuery(query)
                 .getResultList());
     }
 
@@ -64,37 +77,31 @@ public class JpaActorRepository
     public boolean existsByIdentity(
             String identityProvider, String subjectIdentifier) {
         Objects.requireNonNull(subjectIdentifier, "subjectIdentifier");
-        String providerPredicate = identityProvider == null
-                ? "actor.identityProvider is null"
-                : "actor.identityProvider = :identityProvider";
-        var query = entityManager()
-                .createQuery(
-                        "select count(actor) from Actor actor where "
-                                + providerPredicate
-                                + " and actor.subjectIdentifier = :subjectIdentifier",
-                        Long.class)
-                .setParameter("subjectIdentifier", subjectIdentifier);
-        if (identityProvider != null) {
-            query.setParameter("identityProvider", identityProvider);
-        }
-        return query.getSingleResult() > 0L;
+        CriteriaBuilder builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<Long> query = builder.createQuery(Long.class);
+        Root<Actor> actor = query.from(Actor.class);
+        query.select(builder.count(actor)).where(identityPredicate(
+                builder,
+                actor,
+                identityProvider,
+                subjectIdentifier));
+        return entityManager().createQuery(query).getSingleResult() > 0L;
     }
 
-    private jakarta.persistence.TypedQuery<Actor> identityQuery(
-            String identityProvider, String subjectIdentifier) {
-        String providerPredicate = identityProvider == null
-                ? "actor.identityProvider is null"
-                : "actor.identityProvider = :identityProvider";
-        var query = entityManager()
-                .createQuery(
-                        "select actor from Actor actor where "
-                                + providerPredicate
-                                + " and actor.subjectIdentifier = :subjectIdentifier",
-                        Actor.class)
-                .setParameter("subjectIdentifier", subjectIdentifier);
-        if (identityProvider != null) {
-            query.setParameter("identityProvider", identityProvider);
-        }
-        return query;
+    private Predicate identityPredicate(
+            CriteriaBuilder builder,
+            Root<Actor> actor,
+            String identityProvider,
+            String subjectIdentifier) {
+        Predicate provider = identityProvider == null
+                ? builder.isNull(actor.get(Actor_.identityProvider))
+                : builder.equal(
+                        actor.get(Actor_.identityProvider),
+                        identityProvider);
+        return builder.and(
+                provider,
+                builder.equal(
+                        actor.get(Actor_.subjectIdentifier),
+                        subjectIdentifier));
     }
 }

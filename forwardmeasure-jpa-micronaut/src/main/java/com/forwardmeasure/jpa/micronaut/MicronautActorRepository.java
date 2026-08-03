@@ -1,7 +1,7 @@
 package com.forwardmeasure.jpa.micronaut;
 
-import com.forwardmeasure.jpa.identity.Actor;
-import com.forwardmeasure.jpa.identity.IdentityType;
+import com.forwardmeasure.jpa.identity.entity.Actor;
+import com.forwardmeasure.jpa.identity.entity.IdentityType;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.repository.CrudRepository;
 import java.util.Optional;

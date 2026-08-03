@@ -1,11 +1,14 @@
 package com.forwardmeasure.jpa.contract;
 
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
 import com.forwardmeasure.jpa.core.query.JpaSpecification;
 import com.forwardmeasure.jpa.core.query.PageRequest;
 import com.forwardmeasure.jpa.core.query.SortDirection;
 import com.forwardmeasure.jpa.core.query.SortOrder;
-import com.forwardmeasure.jpa.identity.Actor;
-import com.forwardmeasure.jpa.identity.IdentityType;
+import com.forwardmeasure.jpa.identity.entity.Actor;
+import com.forwardmeasure.jpa.identity.entity.Actor_;
+import com.forwardmeasure.jpa.identity.entity.IdentityType;
+import com.forwardmeasure.jpa.identity.entity.OwnedEntity_;
 import com.forwardmeasure.jpa.identity.repository.JpaActorRepository;
 import com.forwardmeasure.jpa.identity.repository.JpaOwnedEntityRepository;
 import jakarta.persistence.EntityManager;
@@ -91,7 +94,8 @@ public final class JpaPersistenceContract {
                         0,
                         10,
                         List.of(new SortOrder(
-                                "owner.subjectIdentifier",
+                                OwnedEntity_.OWNER + "."
+                                        + Actor_.SUBJECT_IDENTIFIER,
                                 SortDirection.ASCENDING))),
                 (JpaSpecification<ContractOwnedEntity>)
                         (root, query, builder) ->

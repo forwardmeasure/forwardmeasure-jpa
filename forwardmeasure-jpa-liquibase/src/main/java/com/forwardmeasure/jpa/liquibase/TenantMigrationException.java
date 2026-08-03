@@ -8,6 +8,11 @@ public final class TenantMigrationException extends RuntimeException {
 
     public TenantMigrationException(
             TenantSchema schema, Throwable cause) {
-        super("Failed to migrate tenant schema " + schema.value(), cause);
+        this(schema, "migrate", cause);
+    }
+
+    public TenantMigrationException(
+            TenantSchema schema, String operation, Throwable cause) {
+        super("Failed to " + operation + " tenant schema " + schema.value(), cause);
     }
 }

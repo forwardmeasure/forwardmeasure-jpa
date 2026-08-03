@@ -1,6 +1,7 @@
 package com.forwardmeasure.jpa.quarkus;
 
-import com.forwardmeasure.jpa.core.AuditedEntity;
+import com.forwardmeasure.jpa.core.entity.AuditedEntity;
+import com.forwardmeasure.jpa.core.entity.AuditedEntity_;
 import io.quarkus.hibernate.orm.panache.PanacheRepositoryBase;
 import java.io.Serializable;
 import java.util.Collection;
@@ -23,7 +24,7 @@ public interface QuarkusAuditedRepository<
 
     default Optional<T> findByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return find("uuid", uuid).firstResultOptional();
+        return find(AuditedEntity_.UUID, uuid).firstResultOptional();
     }
 
     default List<T> findByUuids(Collection<UUID> uuids) {
@@ -31,16 +32,16 @@ public interface QuarkusAuditedRepository<
         if (uuids.isEmpty()) {
             return List.of();
         }
-        return List.copyOf(list("uuid in ?1", uuids));
+        return List.copyOf(list(AuditedEntity_.UUID + " in ?1", uuids));
     }
 
     default boolean existsByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return count("uuid", uuid) > 0L;
+        return count(AuditedEntity_.UUID, uuid) > 0L;
     }
 
     default long deleteByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return delete("uuid", uuid);
+        return delete(AuditedEntity_.UUID, uuid);
     }
 }

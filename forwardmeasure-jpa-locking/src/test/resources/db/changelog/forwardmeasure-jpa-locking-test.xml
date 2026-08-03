@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/forwardmeasure-jpa-locking-test.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <include file="db/changelog/forwardmeasure-jpa-locking.xml" />
+
+    <changeSet id="locking-test-001-seed" author="forwardmeasure">
+        <insert tableName="system_lock">
+            <column name="lock_name" value="exclusive-test" />
+            <column name="description" value="Concurrency contract" />
+            <column name="version" valueNumeric="0" />
+        </insert>
+    </changeSet>
+</databaseChangeLog>

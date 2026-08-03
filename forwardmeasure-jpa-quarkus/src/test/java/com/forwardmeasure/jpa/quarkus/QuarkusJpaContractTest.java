@@ -4,7 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.ContractOwnedEntityService;
 import com.forwardmeasure.jpa.contract.JpaPersistenceContract;
+import com.forwardmeasure.jpa.contract.JpaServiceContract;
+import com.forwardmeasure.jpa.identity.repository.JpaOwnedEntityRepository;
+import com.forwardmeasure.jpa.identity.service.ActorService;
+import com.forwardmeasure.jpa.locking.SystemLockService;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import io.agroal.api.AgroalDataSource;
@@ -40,6 +46,12 @@ class QuarkusJpaContractTest {
     QuarkusActorRepository actors;
 
     @Inject
+    ActorService actorService;
+
+    @Inject
+    SystemLockService systemLocks;
+
+    @Inject
     QuarkusPanacheActorRepository panacheActors;
 
     @Inject
@@ -52,7 +64,16 @@ class QuarkusJpaContractTest {
             transaction.begin();
             try {
                 var result = JpaPersistenceContract.verify(entityManager);
+                var serviceResult = JpaServiceContract.verify(
+                        actorService,
+                        new ContractOwnedEntityService(
+                                new JpaOwnedEntityRepository<>(
+                                        ContractOwnedEntity.class,
+                                        entityManager)));
+                systemLocks.acquire("contract-lock");
                 assertTrue(actors.findByUuid(result.actorUuid()).isPresent());
+                assertTrue(actorService.findByUuid(
+                        serviceResult.actorUuid()).isPresent());
                 assertTrue(
                         panacheActors.findByUuid(result.actorUuid()).isPresent());
                 assertTrue(panacheActors.existsByIdentity(
@@ -79,6 +100,9 @@ class QuarkusJpaContractTest {
                 () -> new QuarkusTenantResolver(
                         tenantScope).resolveTenantId());
         assertThrows(RuntimeException.class, actors::count);
+        assertThrows(
+                jakarta.transaction.TransactionalException.class,
+                () -> systemLocks.acquire("contract-lock"));
     }
 
     @Test

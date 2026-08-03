@@ -1,6 +1,6 @@
 package com.forwardmeasure.jpa.micronaut;
 
-import com.forwardmeasure.jpa.core.AuditedEntity;
+import com.forwardmeasure.jpa.core.entity.AuditedEntity;
 import io.micronaut.data.repository.PageableRepository;
 import java.io.Serializable;
 import java.util.Collection;

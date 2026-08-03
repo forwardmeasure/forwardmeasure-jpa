@@ -1,7 +1,11 @@
 package com.forwardmeasure.jpa.core.repository;
 
-import com.forwardmeasure.jpa.core.AuditedEntity;
+import com.forwardmeasure.jpa.core.entity.AuditedEntity;
+import com.forwardmeasure.jpa.core.entity.AuditedEntity_;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaDelete;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
@@ -25,12 +29,13 @@ public class JpaAuditedEntityRepository<
     @Override
     public Optional<T> findByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return entityManager()
-                .createQuery(
-                        "select entity from " + entityName()
-                                + " entity where entity.uuid = :uuid",
-                        entityType())
-                .setParameter("uuid", uuid)
+        var builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<T> query = builder.createQuery(entityType());
+        Root<T> root = query.from(entityType());
+        query.select(root).where(builder.equal(
+                root.get(AuditedEntity_.uuid),
+                uuid));
+        return entityManager().createQuery(query)
                 .getResultStream()
                 .findFirst();
     }
@@ -41,42 +46,34 @@ public class JpaAuditedEntityRepository<
         if (uuids.isEmpty()) {
             return List.of();
         }
-        return List.copyOf(entityManager()
-                .createQuery(
-                        "select entity from " + entityName()
-                                + " entity where entity.uuid in :uuids",
-                        entityType())
-                .setParameter("uuids", List.copyOf(uuids))
+        var builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<T> query = builder.createQuery(entityType());
+        Root<T> root = query.from(entityType());
+        query.select(root).where(root.get(AuditedEntity_.uuid)
+                .in(List.copyOf(uuids)));
+        return List.copyOf(entityManager().createQuery(query)
                 .getResultList());
     }
 
     @Override
     public boolean existsByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return entityManager()
-                .createQuery(
-                        "select count(entity) from " + entityName()
-                                + " entity where entity.uuid = :uuid",
-                        Long.class)
-                .setParameter("uuid", uuid)
-                .getSingleResult() > 0L;
+        var builder = entityManager().getCriteriaBuilder();
+        CriteriaQuery<Long> query = builder.createQuery(Long.class);
+        Root<T> root = query.from(entityType());
+        query.select(builder.count(root)).where(builder.equal(
+                root.get(AuditedEntity_.uuid),
+                uuid));
+        return entityManager().createQuery(query).getSingleResult() > 0L;
     }
 
     @Override
     public boolean deleteByUuid(UUID uuid) {
         Objects.requireNonNull(uuid, "uuid");
-        return entityManager()
-                .createQuery(
-                        "delete from " + entityName()
-                                + " entity where entity.uuid = :uuid")
-                .setParameter("uuid", uuid)
-                .executeUpdate() > 0;
-    }
-
-    private String entityName() {
-        var entity = entityType().getAnnotation(jakarta.persistence.Entity.class);
-        return entity != null && !entity.name().isBlank()
-                ? entity.name()
-                : entityType().getSimpleName();
+        var builder = entityManager().getCriteriaBuilder();
+        CriteriaDelete<T> delete = builder.createCriteriaDelete(entityType());
+        Root<T> root = delete.from(entityType());
+        delete.where(builder.equal(root.get(AuditedEntity_.uuid), uuid));
+        return entityManager().createQuery(delete).executeUpdate() > 0;
     }
 }

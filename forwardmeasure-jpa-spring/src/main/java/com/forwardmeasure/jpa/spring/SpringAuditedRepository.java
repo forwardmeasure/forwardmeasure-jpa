@@ -1,6 +1,6 @@
 package com.forwardmeasure.jpa.spring;
 
-import com.forwardmeasure.jpa.core.AuditedEntity;
+import com.forwardmeasure.jpa.core.entity.AuditedEntity;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;

@@ -1,7 +1,7 @@
 package com.forwardmeasure.jpa.identity.repository;
 
 import com.forwardmeasure.jpa.core.repository.AuditedEntityRepository;
-import com.forwardmeasure.jpa.identity.OwnedEntity;
+import com.forwardmeasure.jpa.identity.entity.OwnedEntity;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;

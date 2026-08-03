@@ -13,8 +13,8 @@
 
     <dependencies>
         <dependency>
-            <groupId>org.liquibase</groupId>
-            <artifactId>liquibase-core</artifactId>
+            <groupId>com.forwardmeasure.database</groupId>
+            <artifactId>forwardmeasure-database-migrations-liquibase</artifactId>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -26,8 +26,8 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>${project.groupId}</groupId>
-            <artifactId>forwardmeasure-jpa-testcontainers</artifactId>
+            <groupId>com.forwardmeasure.testcontainers</groupId>
+            <artifactId>forwardmeasure-testcontainers-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

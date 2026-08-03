@@ -6,6 +6,15 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/forwardmeasure-jpa.xml" />
+    <include file="db/changelog/forwardmeasure-jpa-locking.xml" />
+
+    <changeSet id="contract-000-system-lock" author="forwardmeasure">
+        <insert tableName="system_lock">
+            <column name="lock_name" value="contract-lock" />
+            <column name="description" value="Cross-framework contract lock" />
+            <column name="version" valueNumeric="0" />
+        </insert>
+    </changeSet>
 
     <changeSet id="contract-001-owned-entity" author="forwardmeasure">
         <createSequence

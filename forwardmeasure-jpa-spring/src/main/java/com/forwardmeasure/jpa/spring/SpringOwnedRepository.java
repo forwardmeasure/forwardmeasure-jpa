@@ -1,6 +1,6 @@
 package com.forwardmeasure.jpa.spring;
 
-import com.forwardmeasure.jpa.identity.OwnedEntity;
+import com.forwardmeasure.jpa.identity.entity.OwnedEntity;
 import java.io.Serializable;
 import java.util.List;
 import java.util.UUID;

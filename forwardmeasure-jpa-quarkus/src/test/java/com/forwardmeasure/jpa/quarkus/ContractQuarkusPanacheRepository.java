@@ -1,6 +1,6 @@
 package com.forwardmeasure.jpa.quarkus;
 
-import com.forwardmeasure.jpa.contract.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
 import jakarta.enterprise.context.ApplicationScoped;
 
 @ApplicationScoped

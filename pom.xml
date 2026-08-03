@@ -34,7 +34,7 @@
     </licenses>
 
     <properties>
-        <revision>0.1.0</revision>
+        <revision>1.0.0</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <project.build.outputTimestamp>1980-01-01T00:00:02Z</project.build.outputTimestamp>
@@ -47,12 +47,15 @@
         <hibernate.version>7.4.5.Final</hibernate.version>
         <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
         <jakarta.validation.version>3.1.1</jakarta.validation.version>
-        <liquibase.version>5.0.3</liquibase.version>
+        <forwardmeasure.database-migrations.version>1.0.0</forwardmeasure.database-migrations.version>
+        <forwardmeasure.testcontainers.version>1.0.0</forwardmeasure.testcontainers.version>
         <postgresql.version>42.7.13</postgresql.version>
-        <testcontainers.version>2.0.5</testcontainers.version>
         <junit.version>6.1.2</junit.version>
         <slf4j.version>2.0.18</slf4j.version>
         <byte-buddy.version>1.18.11</byte-buddy.version>
+        <lombok.version>1.18.46</lombok.version>
+        <mapstruct.version>1.6.3</mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
 
         <!-- Build plugin versions are selected only here. -->
         <maven.clean.version>3.5.0</maven.clean.version>
@@ -76,9 +79,9 @@
         <module>forwardmeasure-jpa-bom</module>
         <module>forwardmeasure-jpa-core</module>
         <module>forwardmeasure-jpa-identity</module>
+        <module>forwardmeasure-jpa-locking</module>
         <module>forwardmeasure-jpa-tenancy</module>
         <module>forwardmeasure-jpa-liquibase</module>
-        <module>forwardmeasure-jpa-testcontainers</module>
         <module>forwardmeasure-jpa-contract-tests</module>
         <module>forwardmeasure-jpa-quarkus</module>
         <module>forwardmeasure-jpa-spring</module>
@@ -95,13 +98,6 @@
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
                 <version>${junit.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.testcontainers</groupId>
-                <artifactId>testcontainers-bom</artifactId>
-                <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -123,9 +119,24 @@
                 <version>${jakarta.validation.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.liquibase</groupId>
-                <artifactId>liquibase-core</artifactId>
-                <version>${liquibase.version}</version>
+                <groupId>com.forwardmeasure.database</groupId>
+                <artifactId>forwardmeasure-database-migrations-liquibase</artifactId>
+                <version>${forwardmeasure.database-migrations.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forwardmeasure.testcontainers</groupId>
+                <artifactId>forwardmeasure-testcontainers-postgresql</artifactId>
+                <version>${forwardmeasure.testcontainers.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forwardmeasure.testcontainers</groupId>
+                <artifactId>forwardmeasure-testcontainers-junit-jupiter</artifactId>
+                <version>${forwardmeasure.testcontainers.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.forwardmeasure.testcontainers</groupId>
+                <artifactId>forwardmeasure-testcontainers-quarkus</artifactId>
+                <version>${forwardmeasure.testcontainers.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.postgresql</groupId>
@@ -136,6 +147,21 @@
                 <groupId>net.bytebuddy</groupId>
                 <artifactId>byte-buddy</artifactId>
                 <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.hibernate.orm</groupId>
+                <artifactId>hibernate-core</artifactId>
+                <version>${hibernate.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mapstruct</groupId>
+                <artifactId>mapstruct</artifactId>
+                <version>${mapstruct.version}</version>
             </dependency>
 
             <!-- Reactor modules: leaf POMs never select inter-module versions. -->
@@ -151,17 +177,17 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>forwardmeasure-jpa-locking</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>forwardmeasure-jpa-tenancy</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>forwardmeasure-jpa-liquibase</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
-                <artifactId>forwardmeasure-jpa-testcontainers</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -204,6 +230,28 @@
                         <proc>full</proc>
                         <parameters>true</parameters>
                         <showWarnings>true</showWarnings>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.hibernate.orm</groupId>
+                                <artifactId>hibernate-processor</artifactId>
+                                <version>${hibernate.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.mapstruct</groupId>
+                                <artifactId>mapstruct-processor</artifactId>
+                                <version>${mapstruct.version}</version>
+                            </path>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok-mapstruct-binding</artifactId>
+                                <version>${lombok-mapstruct-binding.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -319,7 +367,6 @@
                                 <requireMavenVersion>
                                     <version>[3.9.9,4)</version>
                                 </requireMavenVersion>
-                                <reactorModuleConvergence />
                                 <banDuplicatePomDependencyVersions />
                                 <requirePluginVersions />
                             </rules>
