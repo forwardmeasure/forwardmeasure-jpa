@@ -41,7 +41,7 @@
         <maven.compiler.release>25</maven.compiler.release>
 
         <!-- Platform and library versions are selected only here. -->
-        <quarkus.platform.version>3.38.0</quarkus.platform.version>
+        <quarkus.platform.version>3.38.1</quarkus.platform.version>
         <spring-boot.version>4.1.0</spring-boot.version>
         <micronaut.platform.version>5.1.0</micronaut.platform.version>
         <hibernate.version>7.4.5.Final</hibernate.version>
