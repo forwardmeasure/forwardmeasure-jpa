@@ -29,6 +29,12 @@ mvn clean verify
 The build uses real PostgreSQL containers. Docker or a compatible container
 runtime must be available. There are no mocked persistence tests.
 
+The final reactor module generates and enforces aggregate production-code
+coverage. After `mvn verify`, open
+`forwardmeasure-jpa-coverage/target/site/jacoco-aggregate/index.html` or publish
+the sibling `jacoco.xml` to a coverage service. See the
+[coverage policy](docs/coverage.md) for scope, thresholds, and exclusions.
+
 ## Use
 
 Import the BOM and select only the model and framework adapter required by the
@@ -153,6 +159,7 @@ the consuming build.
 | `forwardmeasure-jpa-quarkus` | Quarkus Hibernate ORM registration and schema tenancy |
 | `forwardmeasure-jpa-spring` | Spring Boot registration and schema tenancy |
 | `forwardmeasure-jpa-micronaut` | Micronaut Hibernate registration and schema tenancy |
+| `forwardmeasure-jpa-coverage` | Aggregate JaCoCo reporting and mandatory production coverage gates |
 
 No framework dependency is exposed by `forwardmeasure-jpa-core`,
 `forwardmeasure-jpa-identity`, `forwardmeasure-jpa-locking`, or

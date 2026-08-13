@@ -73,9 +73,15 @@
         <maven.source.version>3.4.0</maven.source.version>
         <maven.javadoc.version>3.12.0</maven.javadoc.version>
         <maven.enforcer.version>3.6.3</maven.enforcer.version>
+        <maven.dependency.version>3.9.0</maven.dependency.version>
         <jacoco.version>0.8.15</jacoco.version>
         <flatten.version>1.8.0</flatten.version>
         <jandex.version>3.6.0</jandex.version>
+
+        <!-- Aggregate production-code quality gates. -->
+        <jacoco.minimum.line.coverage>0.85</jacoco.minimum.line.coverage>
+        <jacoco.minimum.branch.coverage>0.75</jacoco.minimum.branch.coverage>
+        <jacoco.maximum.missed.classes>0</jacoco.maximum.missed.classes>
     </properties>
 
     <modules>
@@ -90,6 +96,7 @@
         <module>forwardmeasure-jpa-quarkus</module>
         <module>forwardmeasure-jpa-spring</module>
         <module>forwardmeasure-jpa-micronaut</module>
+        <module>forwardmeasure-jpa-coverage</module>
     </modules>
 
     <dependencyManagement>
@@ -338,6 +345,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
                     <version>${maven.enforcer.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>${maven.dependency.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>

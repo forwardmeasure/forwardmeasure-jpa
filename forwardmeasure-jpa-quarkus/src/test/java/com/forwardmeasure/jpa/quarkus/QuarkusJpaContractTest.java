@@ -85,14 +85,26 @@ class QuarkusJpaContractTest {
 
     @Test
     void unscopedPersistenceAndLockingFailClosed() {
-        assertThrows(
-                IllegalStateException.class,
-                () -> new QuarkusTenantResolver(
-                        tenantScope).resolveTenantId());
+        QuarkusTenantResolver resolver =
+                new QuarkusTenantResolver(tenantScope);
+        assertEquals(TenantSchema.PUBLIC.value(), resolver.getDefaultTenantId());
+        assertThrows(IllegalStateException.class, resolver::resolveTenantId);
         assertThrows(RuntimeException.class, actors::count);
         assertThrows(
                 jakarta.transaction.TransactionalException.class,
                 () -> systemLocks.acquireLock("contract-lock"));
+    }
+
+    @Test
+    void resolvesTheExplicitTenantScopeForHibernate() {
+        QuarkusTenantResolver resolver =
+                new QuarkusTenantResolver(tenantScope);
+        try (TenantScope.Scope ignored =
+                tenantScope.open(QuarkusPostgreSqlResource.TENANT)) {
+            assertEquals(
+                    QuarkusPostgreSqlResource.TENANT.value(),
+                    resolver.resolveTenantId());
+        }
     }
 
     @Test

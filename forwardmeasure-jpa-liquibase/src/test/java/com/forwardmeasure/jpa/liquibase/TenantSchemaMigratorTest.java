@@ -17,6 +17,27 @@ import org.junit.jupiter.api.Test;
 class TenantSchemaMigratorTest {
 
     @Test
+    void migrationExceptionIdentifiesTheOperationAndTenantSchema() {
+        TenantSchema tenant = TenantSchema.forTenant(
+                new TenantId(UUID.randomUUID()));
+        IllegalStateException cause = new IllegalStateException("database");
+
+        TenantMigrationException migrationFailure =
+                new TenantMigrationException(tenant, cause);
+        assertEquals(
+                "Failed to migrate tenant schema " + tenant.value(),
+                migrationFailure.getMessage());
+        assertEquals(cause, migrationFailure.getCause());
+
+        TenantMigrationException validationFailure =
+                new TenantMigrationException(tenant, "validate", cause);
+        assertEquals(
+                "Failed to validate tenant schema " + tenant.value(),
+                validationFailure.getMessage());
+        assertEquals(cause, validationFailure.getCause());
+    }
+
+    @Test
     void migratesEachTenantIndependentlyAndIsIdempotent(
             PostgreSqlTestContainer database) throws Exception {
         TenantSchema first = TenantSchema.forTenant(

@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.forwardmeasure.jpa.core.query.JpaSpecification;
 import com.forwardmeasure.jpa.core.query.PageRequest;
 import com.forwardmeasure.jpa.core.query.SortDirection;
 import com.forwardmeasure.jpa.core.query.SortOrder;
@@ -278,6 +279,53 @@ class CorePersistencePostgreSqlTest {
                                 root.get(CoreTestEntity_.name), "match"));
                 assertEquals(2L, page.totalItems());
                 assertEquals(2, page.items().size());
+                return null;
+            });
+        }
+    }
+
+    @Test
+    void composesSpecificationsWithAndOrAndNot(
+            PostgreSqlTestContainer database) {
+        try (var fixture = CoreJpaFixture.create(database)) {
+            fixture.transaction(context -> {
+                context.repository().persist(
+                        entity("alpha"),
+                        entity("beta"),
+                        entity("gamma"));
+                context.repository().flush();
+
+                JpaSpecification<CoreTestEntity> alpha =
+                        (root, query, builder) -> builder.equal(
+                                root.get(CoreTestEntity_.name), "alpha");
+                JpaSpecification<CoreTestEntity> beta =
+                        (root, query, builder) -> builder.equal(
+                                root.get(CoreTestEntity_.name), "beta");
+
+                var either = context.repository().page(
+                        new PageRequest(0, 10, List.of()),
+                        alpha.or(beta));
+                assertEquals(
+                        List.of("alpha", "beta"),
+                        either.items().stream()
+                                .map(CoreTestEntity::getName)
+                                .sorted()
+                                .toList());
+
+                var neither = context.repository().page(
+                        new PageRequest(0, 10, List.of()),
+                        alpha.and(beta));
+                assertTrue(neither.items().isEmpty());
+
+                var notAlpha = context.repository().page(
+                        new PageRequest(0, 10, List.of()),
+                        alpha.not());
+                assertEquals(
+                        List.of("beta", "gamma"),
+                        notAlpha.items().stream()
+                                .map(CoreTestEntity::getName)
+                                .sorted()
+                                .toList());
                 return null;
             });
         }
