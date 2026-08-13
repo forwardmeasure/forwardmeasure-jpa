@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.repository.ContractOwnedEntityRepository;
 import com.forwardmeasure.jpa.identity.entity.Actor;
+import com.forwardmeasure.jpa.identity.repository.ActorRepository;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
@@ -31,7 +33,7 @@ class JpaPersistenceContractTest {
             ContractResult created;
             try (var session = sessions.openSession()) {
                 var transaction = session.beginTransaction();
-                created = JpaPersistenceContract.verify(session);
+                created = verify(session);
                 transaction.commit();
             }
 
@@ -77,18 +79,28 @@ class JpaPersistenceContractTest {
     private void persistContract(SessionFactory sessions) {
         try (var session = sessions.openSession()) {
             var transaction = session.beginTransaction();
-            JpaPersistenceContract.verify(session);
+            verify(session);
             transaction.commit();
         }
     }
 
     private long count(SessionFactory sessions, Class<?> entityType) {
         try (var session = sessions.openSession()) {
-            return session.createSelectionQuery(
-                    "select count(entity) from "
-                            + entityType.getSimpleName() + " entity",
-                    Long.class).getSingleResult();
+            var builder = session.getCriteriaBuilder();
+            var query = builder.createQuery(Long.class);
+            var root = query.from(entityType);
+            query.select(builder.count(root));
+            return session.createQuery(query).getSingleResult();
         }
+    }
+
+    private ContractResult verify(org.hibernate.Session session) {
+        ActorRepository actors = new ActorRepository();
+        actors.bindPersistenceContext(session);
+        ContractOwnedEntityRepository owned =
+                new ContractOwnedEntityRepository();
+        owned.bindPersistenceContext(session);
+        return JpaPersistenceContract.verify(actors, owned);
     }
 
     private void migrate(

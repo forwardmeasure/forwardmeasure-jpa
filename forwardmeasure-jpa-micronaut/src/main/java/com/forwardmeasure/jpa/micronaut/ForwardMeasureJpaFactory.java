@@ -1,20 +1,33 @@
 package com.forwardmeasure.jpa.micronaut;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.forwardmeasure.jpa.asynctask.repository.AsyncTaskRepository;
+import com.forwardmeasure.jpa.asynctask.service.AsyncTaskService;
+import com.forwardmeasure.jpa.asynctask.service.TaskStatusHandler;
+import com.forwardmeasure.jpa.asynctask.service.impl.AsyncTaskServiceImpl;
+import com.forwardmeasure.jpa.core.repository.AbstractBaseRepository;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
-import com.forwardmeasure.jpa.identity.repository.JpaActorRepository;
+import com.forwardmeasure.jpa.identity.service.ActorService;
+import com.forwardmeasure.jpa.identity.service.impl.ActorServiceImpl;
+import com.forwardmeasure.jpa.locking.repository.SystemLockRepository;
+import com.forwardmeasure.jpa.locking.service.SystemLockService;
+import com.forwardmeasure.jpa.locking.service.impl.SystemLockServiceImpl;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import com.forwardmeasure.jpa.tenancy.ThreadBoundTenantScope;
+import io.micronaut.configuration.hibernate.jpa.conf.serviceregistry.builder.configures.StandardServiceRegistryBuilderConfigurer;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Secondary;
-import io.micronaut.configuration.hibernate.jpa.conf.serviceregistry.builder.configures.StandardServiceRegistryBuilderConfigurer;
+import io.micronaut.transaction.TransactionOperations;
 import jakarta.inject.Singleton;
 import jakarta.persistence.EntityManager;
 import javax.sql.DataSource;
+import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.Session;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
-import org.hibernate.cfg.AvailableSettings;
 
+/** Registers the common JPA components without Micronaut Data repositories. */
 @Factory
 public class ForwardMeasureJpaFactory {
 
@@ -56,6 +69,67 @@ public class ForwardMeasureJpaFactory {
     @Secondary
     @Requires(beans = EntityManager.class)
     ActorRepository actorRepository(EntityManager entityManager) {
-        return new JpaActorRepository(entityManager);
+        return repository(new ActorRepository(), entityManager);
+    }
+
+    @Singleton
+    @Secondary
+    ActorService actorService(
+            ActorRepository repository,
+            TransactionOperations<Session> transactions) {
+        return MicronautTransactionalServiceProxy.create(
+                ActorService.class,
+                new ActorServiceImpl(repository),
+                transactions);
+    }
+
+    @Singleton
+    @Secondary
+    @Requires(beans = EntityManager.class)
+    SystemLockRepository systemLockRepository(EntityManager entityManager) {
+        return repository(new SystemLockRepository(), entityManager);
+    }
+
+    @Singleton
+    @Secondary
+    SystemLockService systemLockService(
+            SystemLockRepository repository,
+            TransactionOperations<Session> transactions) {
+        return MicronautTransactionalServiceProxy.create(
+                SystemLockService.class,
+                new SystemLockServiceImpl(repository),
+                transactions);
+    }
+
+    @Singleton
+    @Secondary
+    @Requires(beans = EntityManager.class)
+    AsyncTaskRepository asyncTaskRepository(EntityManager entityManager) {
+        return repository(new AsyncTaskRepository(), entityManager);
+    }
+
+    @Singleton
+    @Secondary
+    AsyncTaskService asyncTaskService(
+            AsyncTaskRepository repository,
+            TransactionOperations<Session> transactions) {
+        return MicronautTransactionalServiceProxy.create(
+                AsyncTaskService.class,
+                new AsyncTaskServiceImpl(repository),
+                transactions);
+    }
+
+    @Singleton
+    @Secondary
+    @Requires(beans = ObjectMapper.class)
+    TaskStatusHandler taskStatusHandler(
+            AsyncTaskService taskService, ObjectMapper objectMapper) {
+        return new TaskStatusHandler(taskService, objectMapper);
+    }
+
+    private static <R extends AbstractBaseRepository<?, ?>> R repository(
+            R repository, EntityManager context) {
+        repository.bindPersistenceContext(context);
+        return repository;
     }
 }

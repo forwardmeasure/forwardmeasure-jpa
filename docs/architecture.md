@@ -4,8 +4,8 @@
 
 ForwardMeasure JPA separates four concerns:
 
-1. The portable model defines persistence semantics, standard-JPA repository
-   ports, and application-facing service contracts.
+1. The portable model defines persistence semantics, standard-JPA
+   repositories, and application-facing service contracts.
 2. Tenancy converts a tenant UUID to a validated schema identifier and binds
    that identifier to one synchronous execution.
 3. Framework adapters connect that scope to each framework's Hibernate
@@ -29,12 +29,11 @@ domain service interfaces. They do not inject repositories or an
 operations and expose their repository only through a protected accessor so a
 domain implementation can add explicit queries.
 
-Repository ports and standard-JPA implementations remain public extension
-points because consuming domains must implement their own persistence
-adapters. They are infrastructure APIs, not an application-layer dependency.
-Framework modules supply native transactional services for shared concepts;
-consumer applications apply the same framework-native transaction semantics
-to their concrete domain services.
+Standard-JPA repository bases remain public extension points because consuming
+domains implement repositories for their own entities. They are infrastructure
+APIs, not an application-layer dependency. Shared and consumer service
+implementations use Jakarta Transaction semantics; the framework adapters
+register the same repository and service classes with the host container.
 
 ## Identity and Ownership
 
@@ -87,6 +86,10 @@ The standard-JPA repositories support:
   ID or UUID.
 
 Transactions and `EntityManager` lifecycles remain framework-owned.
+Repository streams are transaction-bound and must be consumed and closed by
+infrastructure code within the caller's transaction. The service-layer
+`streamAll` operation materializes the result before returning so it never
+leaks a JDBC cursor beyond the service transaction.
 
 Lombok generates entity accessors, constructors, and hierarchy-aware builders.
 Hibernate's annotation processor generates the canonical JPA metamodel for
@@ -103,19 +106,19 @@ consumer API modules define their DTO contracts and generated mappers.
 
 `forwardmeasure-jpa-locking` provides a database-independent named mutex using
 standard JPA `PESSIMISTIC_WRITE`. The application migration owns its finite
-set of lock rows. `SystemLockService.acquire` is deliberately the only runtime
-operation: callers cannot create, update, or delete lock definitions through
-the service.
+set of lock rows; runtime applications use `acquireLock` and do not mutate the
+provisioned definitions.
 
 Acquisition requires an already-active transaction. The Quarkus, Spring, and
 Micronaut adapters enforce mandatory transaction propagation; therefore the
 row lock remains held until the caller's complete business transaction commits
 or rolls back. A missing row fails closed as a deployment/migration error.
 
-Async task lifecycle, dispatch, retries, leases, and status projection are not
-JPA infrastructure. They belong in a separate durable async-task component
-that may consume this library, rather than coupling every JPA application to a
-particular task model or transport.
+The optional `forwardmeasure-jpa-async-task` module supplies transport-neutral
+task persistence and lifecycle semantics: idempotency, progress, attempts,
+retry eligibility, processing leases, cancellation, terminal results, and
+expiry. It does not dispatch work or prescribe Kafka, HTTP, or another
+transport. Applications that do not need this capability omit the module.
 
 ## Verification
 
@@ -123,8 +126,8 @@ The shared contract is run through:
 
 - plain Hibernate ORM;
 - Quarkus Hibernate ORM;
-- Spring Boot and Spring Data JPA; and
-- Micronaut Hibernate JPA and Micronaut Data.
+- Spring Boot Hibernate JPA; and
+- Micronaut Hibernate JPA.
 
 Every integration uses a real PostgreSQL Testcontainer and the same Liquibase
 changelog. The suite also verifies optimistic locking, tenant isolation,

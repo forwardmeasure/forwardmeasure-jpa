@@ -1,16 +1,18 @@
 package com.forwardmeasure.jpa.quarkus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
-import com.forwardmeasure.jpa.contract.ContractOwnedEntityService;
 import com.forwardmeasure.jpa.contract.JpaPersistenceContract;
 import com.forwardmeasure.jpa.contract.JpaServiceContract;
-import com.forwardmeasure.jpa.identity.repository.JpaOwnedEntityRepository;
+import com.forwardmeasure.jpa.asynctask.service.TaskStatusHandler;
+import com.forwardmeasure.jpa.contract.repository.ContractOwnedEntityRepository;
+import com.forwardmeasure.jpa.contract.service.ContractOwnedEntityService;
+import com.forwardmeasure.jpa.identity.repository.ActorRepository;
 import com.forwardmeasure.jpa.identity.service.ActorService;
-import com.forwardmeasure.jpa.locking.SystemLockService;
+import com.forwardmeasure.jpa.locking.service.SystemLockService;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import io.agroal.api.AgroalDataSource;
@@ -18,7 +20,6 @@ import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
-import jakarta.persistence.EntityManager;
 import jakarta.transaction.UserTransaction;
 import org.junit.jupiter.api.Test;
 
@@ -28,9 +29,6 @@ class QuarkusJpaContractTest {
 
     @Inject
     TenantScope tenantScope;
-
-    @Inject
-    EntityManager entityManager;
 
     @Inject
     UserTransaction transaction;
@@ -43,48 +41,40 @@ class QuarkusJpaContractTest {
     QuarkusTenantConnectionResolver tenantConnections;
 
     @Inject
-    QuarkusActorRepository actors;
+    ActorRepository actors;
 
     @Inject
     ActorService actorService;
 
     @Inject
+    ContractOwnedEntityRepository ownedEntities;
+
+    @Inject
+    ContractOwnedEntityService ownedEntityService;
+
+    @Inject
     SystemLockService systemLocks;
 
     @Inject
-    QuarkusPanacheActorRepository panacheActors;
-
-    @Inject
-    ContractQuarkusPanacheRepository panacheOwned;
+    TaskStatusHandler taskStatusHandler;
 
     @Test
-    void executesPortableContractThroughQuarkusHibernate() throws Exception {
+    void executesTheSameRepositoriesAndServicesThroughQuarkus()
+            throws Exception {
         try (TenantScope.Scope ignored =
                 tenantScope.open(QuarkusPostgreSqlResource.TENANT)) {
             transaction.begin();
             try {
-                var result = JpaPersistenceContract.verify(entityManager);
+                assertNotNull(taskStatusHandler);
+                var repositoryResult = JpaPersistenceContract.verify(
+                        actors, ownedEntities);
                 var serviceResult = JpaServiceContract.verify(
-                        actorService,
-                        new ContractOwnedEntityService(
-                                new JpaOwnedEntityRepository<>(
-                                        ContractOwnedEntity.class,
-                                        entityManager)));
-                systemLocks.acquire("contract-lock");
-                assertTrue(actors.findByUuid(result.actorUuid()).isPresent());
+                        actorService, ownedEntityService);
+                systemLocks.acquireLock("contract-lock");
+                assertTrue(actors.findByUuid(
+                        repositoryResult.actorUuid()).isPresent());
                 assertTrue(actorService.findByUuid(
                         serviceResult.actorUuid()).isPresent());
-                assertTrue(
-                        panacheActors.findByUuid(result.actorUuid()).isPresent());
-                assertTrue(panacheActors.existsByIdentity(
-                        "contract-idp", "contract-user"));
-                assertTrue(
-                        panacheOwned.findByUuid(result.entityUuid()).isPresent());
-                assertTrue(panacheOwned.existsByUuidAndOwnerId(
-                        result.entityUuid(), result.actorId()));
-                assertTrue(panacheOwned
-                        .existsByIdAndOwnerSubjectIdentifier(
-                                result.entityId(), "contract-user"));
                 transaction.commit();
             } catch (Exception | Error failure) {
                 transaction.rollback();
@@ -94,7 +84,7 @@ class QuarkusJpaContractTest {
     }
 
     @Test
-    void unscopedPersistenceFailsClosed() {
+    void unscopedPersistenceAndLockingFailClosed() {
         assertThrows(
                 IllegalStateException.class,
                 () -> new QuarkusTenantResolver(
@@ -102,7 +92,18 @@ class QuarkusJpaContractTest {
         assertThrows(RuntimeException.class, actors::count);
         assertThrows(
                 jakarta.transaction.TransactionalException.class,
-                () -> systemLocks.acquire("contract-lock"));
+                () -> systemLocks.acquireLock("contract-lock"));
+    }
+
+    @Test
+    void servicesOwnTransactionsWhileLocksRequireACallerTransaction() {
+        try (TenantScope.Scope ignored =
+                tenantScope.open(QuarkusPostgreSqlResource.TENANT)) {
+            assertTrue(actorService.count() >= 0L);
+            assertThrows(
+                    jakarta.transaction.TransactionalException.class,
+                    () -> systemLocks.acquireLock("contract-lock"));
+        }
     }
 
     @Test

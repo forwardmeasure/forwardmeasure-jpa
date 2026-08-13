@@ -45,7 +45,10 @@
         <spring-boot.version>4.1.0</spring-boot.version>
         <micronaut.platform.version>5.1.0</micronaut.platform.version>
         <hibernate.version>7.4.5.Final</hibernate.version>
+        <jackson.version>2.22.1</jackson.version>
+        <jakarta.inject.version>2.0.1</jakarta.inject.version>
         <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
+        <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
         <jakarta.validation.version>3.1.1</jakarta.validation.version>
         <forwardmeasure.database-migrations.version>1.0.0</forwardmeasure.database-migrations.version>
         <forwardmeasure.testcontainers.version>1.0.0</forwardmeasure.testcontainers.version>
@@ -79,6 +82,7 @@
         <module>forwardmeasure-jpa-bom</module>
         <module>forwardmeasure-jpa-core</module>
         <module>forwardmeasure-jpa-identity</module>
+        <module>forwardmeasure-jpa-async-task</module>
         <module>forwardmeasure-jpa-locking</module>
         <module>forwardmeasure-jpa-tenancy</module>
         <module>forwardmeasure-jpa-liquibase</module>
@@ -109,9 +113,26 @@
                 <scope>import</scope>
             </dependency>
             <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.inject</groupId>
+                <artifactId>jakarta.inject-api</artifactId>
+                <version>${jakarta.inject.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>jakarta.persistence</groupId>
                 <artifactId>jakarta.persistence-api</artifactId>
                 <version>${jakarta.persistence.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.transaction</groupId>
+                <artifactId>jakarta.transaction-api</artifactId>
+                <version>${jakarta.transaction.version}</version>
             </dependency>
             <dependency>
                 <groupId>jakarta.validation</groupId>
@@ -173,6 +194,11 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>forwardmeasure-jpa-identity</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>forwardmeasure-jpa-async-task</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

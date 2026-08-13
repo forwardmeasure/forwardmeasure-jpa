@@ -6,6 +6,7 @@
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/forwardmeasure-jpa.xml" />
+    <include file="db/changelog/forwardmeasure-jpa-async-task.xml" />
     <include file="db/changelog/forwardmeasure-jpa-locking.xml" />
 
     <changeSet id="contract-000-system-lock" author="forwardmeasure">

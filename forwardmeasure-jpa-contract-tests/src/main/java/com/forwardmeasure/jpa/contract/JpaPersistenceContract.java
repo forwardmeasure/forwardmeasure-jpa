@@ -1,6 +1,8 @@
 package com.forwardmeasure.jpa.contract;
 
 import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity_;
+import com.forwardmeasure.jpa.contract.repository.ContractOwnedEntityRepository;
 import com.forwardmeasure.jpa.core.query.JpaSpecification;
 import com.forwardmeasure.jpa.core.query.PageRequest;
 import com.forwardmeasure.jpa.core.query.SortDirection;
@@ -9,40 +11,33 @@ import com.forwardmeasure.jpa.identity.entity.Actor;
 import com.forwardmeasure.jpa.identity.entity.Actor_;
 import com.forwardmeasure.jpa.identity.entity.IdentityType;
 import com.forwardmeasure.jpa.identity.entity.OwnedEntity_;
-import com.forwardmeasure.jpa.identity.repository.JpaActorRepository;
-import com.forwardmeasure.jpa.identity.repository.JpaOwnedEntityRepository;
-import jakarta.persistence.EntityManager;
+import com.forwardmeasure.jpa.identity.repository.ActorRepository;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Shared persistence assertions executed by every supported adapter against a
- * real PostgreSQL database. The caller must provide an active transaction.
- */
+/** Shared repository assertions executed by every supported framework. */
 public final class JpaPersistenceContract {
 
     private JpaPersistenceContract() {
     }
 
-    public static ContractResult verify(EntityManager entityManager) {
-        Objects.requireNonNull(entityManager, "entityManager");
-        JpaActorRepository actors = new JpaActorRepository(entityManager);
-        JpaOwnedEntityRepository<ContractOwnedEntity, Long> owned =
-                new JpaOwnedEntityRepository<>(
-                        ContractOwnedEntity.class, entityManager);
+    public static ContractResult verify(
+            ActorRepository actors,
+            ContractOwnedEntityRepository owned) {
+        Objects.requireNonNull(actors, "actors");
+        Objects.requireNonNull(owned, "owned");
 
         Actor actor = new Actor();
         actor.setSubjectIdentifier("contract-user");
         actor.setIdentityProvider("contract-idp");
         actor.setType(IdentityType.HUMAN);
         actor.setEmail("contract@example.test");
-        actors.save(actor);
+        actors.persist(actor);
 
         ContractOwnedEntity entity = new ContractOwnedEntity();
         entity.setName("first");
         entity.setOwner(actor);
-        owned.save(entity);
-        owned.flush();
+        owned.persistAndFlush(entity);
 
         require(actor.getId() != null, "Actor id was not generated");
         require(actor.getUuid() != null, "Actor UUID was not generated");
@@ -89,7 +84,7 @@ public final class JpaPersistenceContract {
         require(actors.findByType(IdentityType.HUMAN).size() == 1,
                 "Actor type lookup failed");
 
-        var page = owned.findAll(
+        var page = owned.page(
                 new PageRequest(
                         0,
                         10,
@@ -98,8 +93,9 @@ public final class JpaPersistenceContract {
                                         + Actor_.SUBJECT_IDENTIFIER,
                                 SortDirection.ASCENDING))),
                 (JpaSpecification<ContractOwnedEntity>)
-                        (root, query, builder) ->
-                                builder.equal(root.get("name"), "first"));
+                        (root, query, builder) -> builder.equal(
+                                root.get(ContractOwnedEntity_.name),
+                                "first"));
         require(page.totalItems() == 1L && page.items().size() == 1,
                 "Specification paging failed");
 
@@ -109,9 +105,8 @@ public final class JpaPersistenceContract {
         require(!entity.getUpdatedAt().isBefore(originalUpdatedAt),
                 "updatedAt moved backwards");
 
-        List<ContractOwnedEntity> byUuid =
-                owned.findByUuids(List.of(entity.getUuid()));
-        require(byUuid.size() == 1, "Bulk UUID lookup failed");
+        require(owned.findByUuids(List.of(entity.getUuid())).size() == 1,
+                "Bulk UUID lookup failed");
 
         return new ContractResult(
                 actor.getId(),
