@@ -11,14 +11,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-/**
- * Minimal provider-neutral base for JPA entities.
- *
- * <p>Equality is deliberately not implemented here. Correct entity equality
- * depends on the domain identity and on the proxy strategy of the selected JPA
- * provider; a generic implementation is more dangerous than requiring each
- * concrete domain to make that decision explicitly.
- */
 @MappedSuperclass
 @Getter
 @Setter
@@ -28,7 +20,7 @@ import lombok.experimental.SuperBuilder;
 public abstract class AbstractBaseEntity<I extends Serializable>
         implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+    protected static final long serialVersionUID = 5164677531140447087L;
 
     @Version
     @Column(name = "version", nullable = false)
@@ -38,4 +30,22 @@ public abstract class AbstractBaseEntity<I extends Serializable>
 
     public abstract void setId(I id);
 
+    @Override
+    public final boolean equals(Object other) {
+        if (this == other) {
+            return true;
+        }
+        if (!(other instanceof AbstractBaseEntity<?> otherEntity)
+                || !getClass().equals(other.getClass())) {
+            return false;
+        }
+        return getId() != null
+                && otherEntity.getId() != null
+                && getId().equals(otherEntity.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return getId() == null ? 0 : getId().hashCode();
+    }
 }

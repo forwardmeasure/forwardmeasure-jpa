@@ -1,0 +1,17 @@
+[
+  {
+    "interfaces": [
+      "com.forwardmeasure.jpa.identity.service.ActorService"
+    ]
+  },
+  {
+    "interfaces": [
+      "com.forwardmeasure.jpa.locking.service.SystemLockService"
+    ]
+  },
+  {
+    "interfaces": [
+      "com.forwardmeasure.jpa.asynctask.service.AsyncTaskService"
+    ]
+  }
+]

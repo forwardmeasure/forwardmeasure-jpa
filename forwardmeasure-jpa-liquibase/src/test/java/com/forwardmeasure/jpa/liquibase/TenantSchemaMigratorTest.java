@@ -76,6 +76,31 @@ class TenantSchemaMigratorTest {
         }
     }
 
+    @Test
+    void upgradesAnExistingDataFabricSchemaWithoutReplayingLegacyChanges(
+            PostgreSqlTestContainer database) throws Exception {
+        TenantSchema tenant = TenantSchema.forTenant(
+                new TenantId(UUID.randomUUID()));
+        database.createSchema(tenant.value());
+
+        TenantSchemaMigrator legacyMigrator = new TenantSchemaMigrator(
+                database.dataSource(),
+                "db/changelog/data-fabric-core-changelog.xml",
+                getClass().getClassLoader());
+        TenantSchemaMigrator forwardMeasureMigrator =
+                new TenantSchemaMigrator(database.dataSource());
+
+        assertEquals(3L, legacyMigrator.migrate(tenant).appliedChangeCount());
+        assertEquals(3L, changeSetCount(database, tenant));
+
+        var upgrade = forwardMeasureMigrator.migrate(tenant);
+
+        assertEquals(2L, upgrade.appliedChangeCount());
+        assertTrue(upgrade.status().current());
+        assertEquals(5L, changeSetCount(database, tenant));
+        assertTrue(tableExists(database, tenant, "actor"));
+    }
+
     private boolean tableExists(
             PostgreSqlTestContainer database,
             TenantSchema schema,

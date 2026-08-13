@@ -1,6 +1,7 @@
 package com.forwardmeasure.jpa.contract;
 
 import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
+import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity_;
 import com.forwardmeasure.jpa.core.query.JpaSpecification;
 import com.forwardmeasure.jpa.core.query.PageRequest;
 import com.forwardmeasure.jpa.identity.entity.Actor;
@@ -10,10 +11,7 @@ import com.forwardmeasure.jpa.identity.service.OwnedEntityService;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Shared service-layer assertions executed by every supported framework
- * against a real PostgreSQL transaction.
- */
+/** Shared service assertions executed by every supported framework. */
 public final class JpaServiceContract {
 
     private JpaServiceContract() {
@@ -30,16 +28,16 @@ public final class JpaServiceContract {
         actor.setIdentityProvider("service-contract-idp");
         actor.setType(IdentityType.SERVICE);
         actor.setEmail("service-contract@example.test");
-        actors.saveAndFlush(actor);
+        actors.persistAndFlush(actor);
 
         ContractOwnedEntity entity = new ContractOwnedEntity();
         entity.setName("service-first");
         entity.setOwner(actor);
-        owned.saveAndFlush(entity);
+        owned.persistAndFlush(entity);
 
         require(actor.getId() != null, "Service did not persist actor");
         require(entity.getId() != null, "Service did not persist owned entity");
-        require(actors.findById(actor.getId()).isPresent(),
+        require(actors.findByIdOptional(actor.getId()).isPresent(),
                 "Actor service id lookup failed");
         require(actors.findByUuid(actor.getUuid()).isPresent(),
                 "Actor service UUID lookup failed");
@@ -55,7 +53,7 @@ public final class JpaServiceContract {
                 "Actor service email lookup failed");
         require(actors.findByType(IdentityType.SERVICE).size() == 1,
                 "Actor service type lookup failed");
-        require(owned.findById(entity.getId()).isPresent(),
+        require(owned.findByIdOptional(entity.getId()).isPresent(),
                 "Owned service id lookup failed");
         require(owned.findByUuid(entity.getUuid()).isPresent(),
                 "Owned service UUID lookup failed");
@@ -72,11 +70,11 @@ public final class JpaServiceContract {
                         "service-contract-user"),
                 "Owned service owner-subject lookup failed");
 
-        var page = owned.findAll(
+        var page = owned.page(
                 new PageRequest(0, 10, List.of()),
                 (JpaSpecification<ContractOwnedEntity>)
                         (root, query, builder) -> builder.equal(
-                                root.get("name"),
+                                root.get(ContractOwnedEntity_.name),
                                 "service-first"));
         require(page.items().size() == 1 && page.totalItems() == 1,
                 "Service specification paging failed");
@@ -84,7 +82,7 @@ public final class JpaServiceContract {
         ContractOwnedEntity disposable = new ContractOwnedEntity();
         disposable.setName("service-disposable");
         disposable.setOwner(actor);
-        owned.saveAndFlush(disposable);
+        owned.persistAndFlush(disposable);
         require(owned.deleteByUuid(disposable.getUuid()),
                 "Service UUID deletion failed");
         owned.flush();

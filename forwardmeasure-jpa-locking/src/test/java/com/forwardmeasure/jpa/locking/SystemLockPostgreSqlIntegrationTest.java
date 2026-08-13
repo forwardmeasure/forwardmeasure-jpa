@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
+import com.forwardmeasure.jpa.locking.repository.SystemLockRepository;
+import com.forwardmeasure.jpa.locking.service.SystemLockService;
+import com.forwardmeasure.jpa.locking.service.impl.SystemLockServiceImpl;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.testcontainers.junit.postgresql.WithPostgreSqlContainer;
@@ -37,7 +40,7 @@ class SystemLockPostgreSqlIntegrationTest {
             var first = executor.submit(() -> inTransaction(
                     entityManagers,
                     service -> {
-                        service.acquire("exclusive-test");
+                        service.acquireLock("exclusive-test");
                         firstAcquired.countDown();
                         await(releaseFirst);
                     }));
@@ -46,7 +49,7 @@ class SystemLockPostgreSqlIntegrationTest {
             var second = executor.submit(() -> inTransaction(
                     entityManagers,
                     service -> {
-                        service.acquire("exclusive-test");
+                        service.acquireLock("exclusive-test");
                         secondAcquired.countDown();
                     }));
 
@@ -71,12 +74,12 @@ class SystemLockPostgreSqlIntegrationTest {
                     IllegalStateException.class,
                     () -> inTransaction(
                             entityManagers,
-                            service -> service.acquire("not-provisioned")));
+                            service -> service.acquireLock("not-provisioned")));
             assertThrows(
                     IllegalArgumentException.class,
                     () -> inTransaction(
                             entityManagers,
-                            service -> service.acquire(" ")));
+                            service -> service.acquireLock(" ")));
         }
     }
 
@@ -112,8 +115,9 @@ class SystemLockPostgreSqlIntegrationTest {
         var transaction = entityManager.getTransaction();
         try {
             transaction.begin();
-            work.accept(new RepositorySystemLockService(
-                    new JpaSystemLockRepository(entityManager)));
+            SystemLockRepository repository = new SystemLockRepository();
+            repository.bindPersistenceContext(entityManager);
+            work.accept(new SystemLockServiceImpl(repository));
             transaction.commit();
         } catch (RuntimeException | Error failure) {
             if (transaction.isActive()) {

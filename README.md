@@ -9,9 +9,10 @@ ForwardMeasure services. It provides:
 - portable application service contracts over standard JPA repositories;
 - explicit entity packages with Lombok-backed models and generated canonical
   JPA metamodels;
-- Quarkus, Spring Data, and Micronaut Data integrations with native
-  transaction boundaries;
+- Quarkus, Spring Boot, and Micronaut integrations over the same standard-JPA
+  repositories and Jakarta Transaction service implementations;
 - transaction-scoped, database-independent named locks;
+- optional durable asynchronous-task persistence and lifecycle services;
 - integration with the reusable `forwardmeasure-testcontainers` foundation; and
 - one shared persistence contract executed by every supported framework.
 
@@ -82,14 +83,14 @@ public interface EvidenceService
     Optional<Evidence> findByExternalReference(String externalReference);
 }
 
-public final class RepositoryEvidenceService
-        extends AbstractOwnedEntityService<
+public final class EvidenceServiceImpl
+        extends OwnedEntityServiceImpl<
                 Evidence,
                 Long,
                 EvidenceRepository>
         implements EvidenceService {
 
-    public RepositoryEvidenceService(EvidenceRepository repository) {
+    public EvidenceServiceImpl(EvidenceRepository repository) {
         super(repository);
     }
 
@@ -101,15 +102,15 @@ public final class RepositoryEvidenceService
 }
 ```
 
-The host adapter applies its native transaction annotation to the concrete
-service. HTTP resources, messaging consumers, and workflow processors inject
-`EvidenceService`; only persistence adapters construct or inject its
-repository.
+The concrete service uses Jakarta Transaction semantics inherited from the
+shared service implementation. HTTP resources, messaging consumers, and
+workflow processors inject `EvidenceService`; only service implementations
+inject repositories.
 
 ## Entity Model
 
-- `AbstractBaseEntity` supplies optimistic locking only. It deliberately does
-  not impose unsafe generic entity equality.
+- `AbstractBaseEntity` supplies optimistic locking and identifier-based
+  equality for non-transient instances of the exact same entity class.
 - `AuditedEntity` supplies an immutable public UUID and lifecycle timestamps.
 - `Actor` is an identity root extending `AbstractBaseEntity`; it is neither
   audited nor owned.
@@ -145,12 +146,13 @@ the consuming build.
 | `forwardmeasure-jpa-core` | Provider-neutral entities, repositories, and application services |
 | `forwardmeasure-jpa-identity` | Actor identity, owned entities, and ownership services |
 | `forwardmeasure-jpa-locking` | Transaction-scoped named database mutexes |
+| `forwardmeasure-jpa-async-task` | Optional durable asynchronous-task lifecycle and persistence |
 | `forwardmeasure-jpa-tenancy` | Tenant identifiers and schema scope |
 | `forwardmeasure-jpa-liquibase` | Foundational database changelogs |
 | `forwardmeasure-jpa-contract-tests` | Adapter compatibility contract |
-| `forwardmeasure-jpa-quarkus` | Quarkus Hibernate ORM/Panache adapter |
-| `forwardmeasure-jpa-spring` | Spring Data JPA adapter |
-| `forwardmeasure-jpa-micronaut` | Micronaut Data JPA adapter |
+| `forwardmeasure-jpa-quarkus` | Quarkus Hibernate ORM registration and schema tenancy |
+| `forwardmeasure-jpa-spring` | Spring Boot registration and schema tenancy |
+| `forwardmeasure-jpa-micronaut` | Micronaut Hibernate registration and schema tenancy |
 
 No framework dependency is exposed by `forwardmeasure-jpa-core`,
 `forwardmeasure-jpa-identity`, `forwardmeasure-jpa-locking`, or
@@ -179,11 +181,11 @@ when it adopts this library. See [migration ownership](docs/migrations.md).
 - Quarkus uses its native schema multitenancy SPIs. Applications configure
   `quarkus.hibernate-orm.multitenant=SCHEMA` and include their entity packages.
 - Spring Boot auto-configuration installs the tenant resolver, connection
-  provider, scope, portable actor service, and lock service. Spring Data
-  repository interfaces remain infrastructure extension points.
+  provider, scope, and the shared repositories and services.
 - Micronaut installs the equivalent services and supplies introspection
-  metadata for the shared `Actor` and `SystemLock`. Consumer entities must be
-  compiled with Micronaut introspection metadata, as shown in
+  metadata for the shared entities. Consumer entities must be compiled with
+  Micronaut introspection metadata, as shown in
   [framework integration](docs/framework-integration.md).
 
-For design boundaries and guarantees, see [architecture](docs/architecture.md).
+For design boundaries and guarantees, see [architecture](docs/architecture.md)
+and the documented [Data Fabric deviations](docs/data-fabric-deviations.md).

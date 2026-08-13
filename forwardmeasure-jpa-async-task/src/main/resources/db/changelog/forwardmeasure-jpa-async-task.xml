@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/forwardmeasure-jpa-async-task.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="forwardmeasure-jpa-async-task-001" author="forwardmeasure">
+        <comment>Create the complete tenant-local asynchronous task store.</comment>
+
+        <createSequence
+            sequenceName="async_task_id_seq"
+            startValue="1"
+            incrementBy="1"
+            cacheSize="1" />
+
+        <createTable tableName="async_task">
+            <column
+                name="id"
+                type="BIGINT"
+                defaultValueSequenceNext="async_task_id_seq">
+                <constraints
+                    primaryKey="true"
+                    primaryKeyName="pk_async_task"
+                    nullable="false" />
+            </column>
+            <column name="version" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="uuid" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints
+                    nullable="false"
+                    unique="true"
+                    uniqueConstraintName="uk_async_task_uuid" />
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="task_type" type="VARCHAR(50)">
+                <constraints nullable="false" />
+            </column>
+            <column name="status" type="VARCHAR(20)" defaultValue="ACCEPTED">
+                <constraints nullable="false" />
+            </column>
+            <column name="attempt_count" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="max_attempts" type="INTEGER" defaultValueNumeric="3">
+                <constraints nullable="false" />
+            </column>
+            <column name="next_retry_at" type="TIMESTAMP WITH TIME ZONE" />
+            <column name="resource_type" type="VARCHAR(50)" />
+            <column name="resource_id" type="UUID" />
+            <column name="actor_id" type="BIGINT">
+                <constraints
+                    foreignKeyName="fk_async_task_actor"
+                    references="actor(id)" />
+            </column>
+            <column name="result_payload" type="JSONB" />
+            <column name="result_uri" type="TEXT" />
+            <column name="progress_payload" type="JSONB" />
+            <column name="input_payload_json" type="JSONB" />
+            <column name="error_code" type="VARCHAR(100)" />
+            <column name="error_message" type="TEXT" />
+            <column name="error_detail" type="JSONB" />
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE">
+                <constraints nullable="false" />
+            </column>
+            <column name="started_at" type="TIMESTAMP WITH TIME ZONE" />
+            <column name="completed_at" type="TIMESTAMP WITH TIME ZONE" />
+            <column name="processing_owner" type="VARCHAR(255)" />
+            <column name="processing_lease_expires_at" type="TIMESTAMP WITH TIME ZONE" />
+            <column name="idempotency_key" type="VARCHAR(255)">
+                <constraints
+                    unique="true"
+                    uniqueConstraintName="uk_async_task_idempotency_key" />
+            </column>
+            <column name="idempotency_fingerprint" type="VARCHAR(255)">
+                <constraints
+                    unique="true"
+                    uniqueConstraintName="uk_async_task_idempotency_fingerprint" />
+            </column>
+            <column name="dispatch_topic_path" type="VARCHAR(255)" />
+            <column name="dispatch_event_type" type="VARCHAR(255)" />
+            <column name="invocation_metadata_json" type="JSONB" />
+        </createTable>
+
+        <sql dbms="postgresql">
+            ALTER SEQUENCE async_task_id_seq OWNED BY async_task.id;
+        </sql>
+
+        <createIndex tableName="async_task" indexName="idx_async_task_status_type">
+            <column name="status" />
+            <column name="task_type" />
+        </createIndex>
+        <createIndex tableName="async_task" indexName="idx_async_task_resource">
+            <column name="resource_type" />
+            <column name="resource_id" />
+        </createIndex>
+        <createIndex tableName="async_task" indexName="idx_async_task_actor">
+            <column name="actor_id" />
+        </createIndex>
+        <createIndex tableName="async_task" indexName="idx_async_task_next_retry">
+            <column name="next_retry_at" />
+        </createIndex>
+
+        <sql dbms="postgresql">
+            CREATE INDEX idx_async_task_dispatch_retry
+            ON async_task (next_retry_at, dispatch_topic_path)
+            WHERE status = 'ACCEPTED'
+              AND next_retry_at IS NOT NULL
+              AND dispatch_topic_path IS NOT NULL;
+
+            CREATE INDEX idx_async_task_processing_lease
+            ON async_task (processing_lease_expires_at)
+            WHERE status = 'PROCESSING';
+
+            CREATE INDEX idx_async_task_expires_at
+            ON async_task (expires_at)
+            WHERE status IN ('COMPLETED', 'FAILED', 'CANCELLED', 'SKIPPED');
+
+            ALTER TABLE async_task
+            ADD CONSTRAINT chk_async_task_status
+            CHECK (status IN (
+                'ACCEPTED', 'PROCESSING', 'COMPLETED',
+                'FAILED', 'CANCELLED', 'SKIPPED'));
+
+            ALTER TABLE async_task
+            ADD CONSTRAINT chk_async_task_attempts
+            CHECK (attempt_count &gt;= 0 AND max_attempts &gt; 0);
+
+            ALTER TABLE async_task
+            ADD CONSTRAINT chk_async_task_result_exclusive
+            CHECK (result_payload IS NULL OR result_uri IS NULL);
+
+            ALTER TABLE async_task
+            ADD CONSTRAINT chk_async_task_completed_at
+            CHECK (
+                completed_at IS NULL
+                OR status IN ('COMPLETED', 'FAILED', 'CANCELLED', 'SKIPPED'));
+
+            ALTER TABLE async_task
+            ADD CONSTRAINT chk_async_task_expires_at
+            CHECK (expires_at &gt; created_at);
+        </sql>
+
+        <rollback>
+            <dropTable tableName="async_task" />
+            <dropSequence sequenceName="async_task_id_seq" />
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

@@ -7,10 +7,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Application-facing persistence operations for audited entities. */
 public interface AuditedEntityService<
         T extends AuditedEntity<I>, I extends Serializable>
-        extends EntityService<T, I> {
+        extends AbstractBaseService<T, I> {
 
     Optional<T> findByUuid(UUID uuid);
 
