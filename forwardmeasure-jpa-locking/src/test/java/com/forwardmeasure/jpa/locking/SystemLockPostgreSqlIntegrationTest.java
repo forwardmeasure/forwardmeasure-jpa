@@ -1,10 +1,12 @@
 package com.forwardmeasure.jpa.locking;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
+import com.forwardmeasure.jpa.locking.entity.SystemLock;
 import com.forwardmeasure.jpa.locking.repository.SystemLockRepository;
 import com.forwardmeasure.jpa.locking.service.SystemLockService;
 import com.forwardmeasure.jpa.locking.service.impl.SystemLockServiceImpl;
@@ -24,6 +26,19 @@ import org.junit.jupiter.api.Test;
 
 @WithPostgreSqlContainer(databaseName = "jpa_locking_contract")
 class SystemLockPostgreSqlIntegrationTest {
+
+    @Test
+    void exposesLockNameAsItsJpaIdentifier() {
+        SystemLock lock = SystemLock.builder()
+                .lockName("initial-lock")
+                .description("A provisioned database lock")
+                .build();
+
+        assertEquals("initial-lock", lock.getId());
+        lock.setId("renamed-lock");
+        assertEquals("renamed-lock", lock.getLockName());
+        assertEquals("A provisioned database lock", lock.getDescription());
+    }
 
     @Test
     void serializesCompetingTransactions(

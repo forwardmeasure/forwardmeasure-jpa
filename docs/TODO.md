@@ -110,6 +110,30 @@ unchecked items under **Later work** are the remaining backlog.
   - Full output:
     `/home/pn/Downloads/mvn.forwardmeasure-jpa-final-with-detailed-tests.out`.
 
+## P0 — Aggregate coverage enforcement
+
+- [x] Generate one cross-module HTML, XML, and CSV JaCoCo report from all
+  production modules and cross-module contract-test execution data.
+- [x] Exclude only generated JPA metamodel and Micronaut framework bytecode.
+- [x] Enforce at least 85% line coverage and 75% branch coverage.
+- [x] Fail when any production class is completely untested.
+- [x] Run a clean reactor verification with the aggregate gate enabled and
+  record the final metrics.
+
+  Verification completed on 2026-08-13:
+
+  - Complete 13-module reactor: 110 tests across 19 test classes, all green,
+    with no failures, errors, or skips, in 2m08s.
+  - Aggregate instruction coverage: 91.62% (4,614/5,036).
+  - Aggregate line coverage: 91.68% (1,058/1,154).
+  - Aggregate branch coverage: 75.00% (267/356).
+  - Aggregate class coverage: 100.00% (51/51); no production class is
+    completely untested.
+  - Full output:
+    `/home/pn/Downloads/mvn.forwardmeasure-jpa-coverage-clean-final.out`.
+  - Reports:
+    `forwardmeasure-jpa-coverage/target/site/jacoco-aggregate/`.
+
 ## Later work
 
 - [ ] Add Flyway support as a separate migration adapter without changing the
