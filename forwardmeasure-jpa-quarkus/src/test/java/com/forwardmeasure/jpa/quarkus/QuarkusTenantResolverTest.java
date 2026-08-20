@@ -12,24 +12,22 @@ import org.junit.jupiter.api.Test;
 
 class QuarkusTenantResolverTest {
 
-    @Test
-    void defaultsToPublicAndFailsClosedWithoutAnExplicitScope() {
-        QuarkusTenantResolver resolver =
-                new QuarkusTenantResolver(new ThreadBoundTenantScope());
+  @Test
+  void defaultsToPublicAndFailsClosedWithoutAnExplicitScope() {
+    QuarkusTenantResolver resolver = new QuarkusTenantResolver(new ThreadBoundTenantScope());
 
-        assertEquals(TenantSchema.PUBLIC.value(), resolver.getDefaultTenantId());
-        assertThrows(IllegalStateException.class, resolver::resolveTenantId);
+    assertEquals(TenantSchema.PUBLIC.value(), resolver.getDefaultTenantId());
+    assertThrows(IllegalStateException.class, resolver::resolveTenantId);
+  }
+
+  @Test
+  void resolvesTheExplicitTenantScope() {
+    TenantScope scope = new ThreadBoundTenantScope();
+    TenantSchema tenant = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
+    QuarkusTenantResolver resolver = new QuarkusTenantResolver(scope);
+
+    try (TenantScope.Scope ignored = scope.open(tenant)) {
+      assertEquals(tenant.value(), resolver.resolveTenantId());
     }
-
-    @Test
-    void resolvesTheExplicitTenantScope() {
-        TenantScope scope = new ThreadBoundTenantScope();
-        TenantSchema tenant = TenantSchema.forTenant(
-                new TenantId(UUID.randomUUID()));
-        QuarkusTenantResolver resolver = new QuarkusTenantResolver(scope);
-
-        try (TenantScope.Scope ignored = scope.open(tenant)) {
-            assertEquals(tenant.value(), resolver.resolveTenantId());
-        }
-    }
+  }
 }

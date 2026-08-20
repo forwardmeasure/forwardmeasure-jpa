@@ -175,7 +175,7 @@
                         <configuration>
                             <fileSets>
                                 <fileSet>
-                                    <directory>${maven.multiModuleProjectDirectory}</directory>
+                                    <directory>${project.basedir}/..</directory>
                                     <includes>
                                         <include>forwardmeasure-jpa-core/target/jacoco.exec</include>
                                         <include>forwardmeasure-jpa-identity/target/jacoco.exec</include>

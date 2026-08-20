@@ -5,18 +5,15 @@ import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
 @Converter
-public class AsyncTaskStatusConverter
-        implements AttributeConverter<AsyncTaskStatus, String> {
+public class AsyncTaskStatusConverter implements AttributeConverter<AsyncTaskStatus, String> {
 
-    @Override
-    public String convertToDatabaseColumn(AsyncTaskStatus value) {
-        return value == null ? null : value.databaseValue();
-    }
+  @Override
+  public String convertToDatabaseColumn(AsyncTaskStatus value) {
+    return value == null ? null : value.databaseValue();
+  }
 
-    @Override
-    public AsyncTaskStatus convertToEntityAttribute(String value) {
-        return value == null
-                ? null
-                : AsyncTaskStatus.fromDatabaseValue(value);
-    }
+  @Override
+  public AsyncTaskStatus convertToEntityAttribute(String value) {
+    return value == null ? null : AsyncTaskStatus.fromDatabaseValue(value);
+  }
 }

@@ -18,37 +18,35 @@ import lombok.Setter;
 @Entity
 @Table(name = "core_test_entity")
 @SequenceGenerator(
-        name = "core_test_entity_generator",
-        sequenceName = "core_test_entity_seq",
-        allocationSize = 1)
+    name = "core_test_entity_generator",
+    sequenceName = "core_test_entity_seq",
+    allocationSize = 1)
 @Getter
 @Setter
 @NoArgsConstructor
 public class CoreTestEntity extends AuditedEntity<Long> {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Id
-    @GeneratedValue(
-            generator = "core_test_entity_generator",
-            strategy = GenerationType.SEQUENCE)
-    @Column(name = "entity_key")
-    private Long databaseKey;
+  @Id
+  @GeneratedValue(generator = "core_test_entity_generator", strategy = GenerationType.SEQUENCE)
+  @Column(name = "entity_key")
+  private Long databaseKey;
 
-    @Column(name = "name", nullable = false)
-    private String name;
+  @Column(name = "name", nullable = false)
+  private String name;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_key")
-    private CoreTestCategory category;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "category_key")
+  private CoreTestCategory category;
 
-    @Override
-    public Long getId() {
-        return databaseKey;
-    }
+  @Override
+  public Long getId() {
+    return databaseKey;
+  }
 
-    @Override
-    public void setId(Long id) {
-        databaseKey = id;
-    }
+  @Override
+  public void setId(Long id) {
+    databaseKey = id;
+  }
 }

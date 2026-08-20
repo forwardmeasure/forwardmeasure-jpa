@@ -14,9 +14,9 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>io.micronaut.platform</groupId>
-                <artifactId>micronaut-platform</artifactId>
-                <version>${micronaut.platform.version}</version>
+                <groupId>com.forwardmeasure.platform</groupId>
+                <artifactId>forwardmeasure-platform-micronaut-bom</artifactId>
+                <version>${forwardmeasure.platform.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

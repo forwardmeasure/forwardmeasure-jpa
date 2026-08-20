@@ -22,8 +22,8 @@ import io.micronaut.transaction.TransactionOperations;
 import jakarta.inject.Singleton;
 import jakarta.persistence.EntityManager;
 import javax.sql.DataSource;
-import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.Session;
+import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 
@@ -31,105 +31,89 @@ import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 @Factory
 public class ForwardMeasureJpaFactory {
 
-    @Singleton
-    @Secondary
-    TenantScope tenantScope() {
-        return new ThreadBoundTenantScope();
-    }
+  @Singleton
+  @Secondary
+  TenantScope tenantScope() {
+    return new ThreadBoundTenantScope();
+  }
 
-    @Singleton
-    @Secondary
-    CurrentTenantIdentifierResolver<String> tenantIdentifierResolver(
-            TenantScope tenantScope) {
-        return new MicronautTenantIdentifierResolver(tenantScope);
-    }
+  @Singleton
+  @Secondary
+  CurrentTenantIdentifierResolver<String> tenantIdentifierResolver(TenantScope tenantScope) {
+    return new MicronautTenantIdentifierResolver(tenantScope);
+  }
 
-    @Singleton
-    @Secondary
-    MultiTenantConnectionProvider<String> tenantConnectionProvider(
-            DataSource dataSource) {
-        return new MicronautSchemaConnectionProvider(dataSource);
-    }
+  @Singleton
+  @Secondary
+  MultiTenantConnectionProvider<String> tenantConnectionProvider(DataSource dataSource) {
+    return new MicronautSchemaConnectionProvider(dataSource);
+  }
 
-    @Singleton
-    StandardServiceRegistryBuilderConfigurer tenantServiceConfigurer(
-            CurrentTenantIdentifierResolver<String> tenantResolver,
-            MultiTenantConnectionProvider<String> connectionProvider) {
-        return (configuration, builder) -> {
-            builder.addService(
-                    MultiTenantConnectionProvider.class,
-                    connectionProvider);
-            builder.applySetting(
-                    AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER,
-                    tenantResolver);
-        };
-    }
+  @Singleton
+  StandardServiceRegistryBuilderConfigurer tenantServiceConfigurer(
+      CurrentTenantIdentifierResolver<String> tenantResolver,
+      MultiTenantConnectionProvider<String> connectionProvider) {
+    return (configuration, builder) -> {
+      builder.addService(MultiTenantConnectionProvider.class, connectionProvider);
+      builder.applySetting(AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER, tenantResolver);
+    };
+  }
 
-    @Singleton
-    @Secondary
-    @Requires(beans = EntityManager.class)
-    ActorRepository actorRepository(EntityManager entityManager) {
-        return repository(new ActorRepository(), entityManager);
-    }
+  @Singleton
+  @Secondary
+  @Requires(beans = EntityManager.class)
+  ActorRepository actorRepository(EntityManager entityManager) {
+    return repository(new ActorRepository(), entityManager);
+  }
 
-    @Singleton
-    @Secondary
-    ActorService actorService(
-            ActorRepository repository,
-            TransactionOperations<Session> transactions) {
-        return MicronautTransactionalServiceProxy.create(
-                ActorService.class,
-                new ActorServiceImpl(repository),
-                transactions);
-    }
+  @Singleton
+  @Secondary
+  ActorService actorService(
+      ActorRepository repository, TransactionOperations<Session> transactions) {
+    return MicronautTransactionalServiceProxy.create(
+        ActorService.class, new ActorServiceImpl(repository), transactions);
+  }
 
-    @Singleton
-    @Secondary
-    @Requires(beans = EntityManager.class)
-    SystemLockRepository systemLockRepository(EntityManager entityManager) {
-        return repository(new SystemLockRepository(), entityManager);
-    }
+  @Singleton
+  @Secondary
+  @Requires(beans = EntityManager.class)
+  SystemLockRepository systemLockRepository(EntityManager entityManager) {
+    return repository(new SystemLockRepository(), entityManager);
+  }
 
-    @Singleton
-    @Secondary
-    SystemLockService systemLockService(
-            SystemLockRepository repository,
-            TransactionOperations<Session> transactions) {
-        return MicronautTransactionalServiceProxy.create(
-                SystemLockService.class,
-                new SystemLockServiceImpl(repository),
-                transactions);
-    }
+  @Singleton
+  @Secondary
+  SystemLockService systemLockService(
+      SystemLockRepository repository, TransactionOperations<Session> transactions) {
+    return MicronautTransactionalServiceProxy.create(
+        SystemLockService.class, new SystemLockServiceImpl(repository), transactions);
+  }
 
-    @Singleton
-    @Secondary
-    @Requires(beans = EntityManager.class)
-    AsyncTaskRepository asyncTaskRepository(EntityManager entityManager) {
-        return repository(new AsyncTaskRepository(), entityManager);
-    }
+  @Singleton
+  @Secondary
+  @Requires(beans = EntityManager.class)
+  AsyncTaskRepository asyncTaskRepository(EntityManager entityManager) {
+    return repository(new AsyncTaskRepository(), entityManager);
+  }
 
-    @Singleton
-    @Secondary
-    AsyncTaskService asyncTaskService(
-            AsyncTaskRepository repository,
-            TransactionOperations<Session> transactions) {
-        return MicronautTransactionalServiceProxy.create(
-                AsyncTaskService.class,
-                new AsyncTaskServiceImpl(repository),
-                transactions);
-    }
+  @Singleton
+  @Secondary
+  AsyncTaskService asyncTaskService(
+      AsyncTaskRepository repository, TransactionOperations<Session> transactions) {
+    return MicronautTransactionalServiceProxy.create(
+        AsyncTaskService.class, new AsyncTaskServiceImpl(repository), transactions);
+  }
 
-    @Singleton
-    @Secondary
-    @Requires(beans = ObjectMapper.class)
-    TaskStatusHandler taskStatusHandler(
-            AsyncTaskService taskService, ObjectMapper objectMapper) {
-        return new TaskStatusHandler(taskService, objectMapper);
-    }
+  @Singleton
+  @Secondary
+  @Requires(beans = ObjectMapper.class)
+  TaskStatusHandler taskStatusHandler(AsyncTaskService taskService, ObjectMapper objectMapper) {
+    return new TaskStatusHandler(taskService, objectMapper);
+  }
 
-    private static <R extends AbstractBaseRepository<?, ?>> R repository(
-            R repository, EntityManager context) {
-        repository.bindPersistenceContext(context);
-        return repository;
-    }
+  private static <R extends AbstractBaseRepository<?, ?>> R repository(
+      R repository, EntityManager context) {
+    repository.bindPersistenceContext(context);
+    return repository;
+  }
 }

@@ -11,18 +11,17 @@ import jakarta.transaction.Transactional;
 /** Standard-JPA system-lock service shared by every application host. */
 @Singleton
 public class SystemLockServiceImpl
-        extends AbstractBaseServiceImpl<
-                SystemLock, String, SystemLockRepository>
-        implements SystemLockService {
+    extends AbstractBaseServiceImpl<SystemLock, String, SystemLockRepository>
+    implements SystemLockService {
 
-    @Inject
-    public SystemLockServiceImpl(SystemLockRepository repository) {
-        super(repository);
-    }
+  @Inject
+  public SystemLockServiceImpl(SystemLockRepository repository) {
+    super(repository);
+  }
 
-    @Override
-    @Transactional(Transactional.TxType.MANDATORY)
-    public SystemLock acquireLock(String lockName) {
-        return repository().acquireLock(lockName);
-    }
+  @Override
+  @Transactional(Transactional.TxType.MANDATORY)
+  public SystemLock acquireLock(String lockName) {
+    return repository().acquireLock(lockName);
+  }
 }

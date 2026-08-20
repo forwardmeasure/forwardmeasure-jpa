@@ -10,176 +10,160 @@ import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.testcontainers.junit.postgresql.WithPostgreSqlContainer;
 import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import java.util.UUID;
-import org.postgresql.ds.PGPoolingDataSource;
 import org.junit.jupiter.api.Test;
+import org.postgresql.ds.PGPoolingDataSource;
 
 @WithPostgreSqlContainer(databaseName = "jpa_liquibase_contract")
 class TenantSchemaMigratorTest {
 
-    @Test
-    void migrationExceptionIdentifiesTheOperationAndTenantSchema() {
-        TenantSchema tenant = TenantSchema.forTenant(
-                new TenantId(UUID.randomUUID()));
-        IllegalStateException cause = new IllegalStateException("database");
+  @Test
+  void migrationExceptionIdentifiesTheOperationAndTenantSchema() {
+    TenantSchema tenant = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
+    IllegalStateException cause = new IllegalStateException("database");
 
-        TenantMigrationException migrationFailure =
-                new TenantMigrationException(tenant, cause);
-        assertEquals(
-                "Failed to migrate tenant schema " + tenant.value(),
-                migrationFailure.getMessage());
-        assertEquals(cause, migrationFailure.getCause());
+    TenantMigrationException migrationFailure = new TenantMigrationException(tenant, cause);
+    assertEquals(
+        "Failed to migrate tenant schema " + tenant.value(), migrationFailure.getMessage());
+    assertEquals(cause, migrationFailure.getCause());
 
-        TenantMigrationException validationFailure =
-                new TenantMigrationException(tenant, "validate", cause);
-        assertEquals(
-                "Failed to validate tenant schema " + tenant.value(),
-                validationFailure.getMessage());
-        assertEquals(cause, validationFailure.getCause());
+    TenantMigrationException validationFailure =
+        new TenantMigrationException(tenant, "validate", cause);
+    assertEquals(
+        "Failed to validate tenant schema " + tenant.value(), validationFailure.getMessage());
+    assertEquals(cause, validationFailure.getCause());
+  }
+
+  @Test
+  void migratesEachTenantIndependentlyAndIsIdempotent(PostgreSqlTestContainer database)
+      throws Exception {
+    TenantSchema first = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
+    TenantSchema second = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
+    database.createSchema(first.value());
+    database.createSchema(second.value());
+    TenantSchemaMigrator migrator = new TenantSchemaMigrator(database.dataSource());
+
+    assertTrue(migrator.validate(first).valid());
+    assertEquals(5L, migrator.status(first).pendingCount());
+
+    var firstMigration = migrator.migrate(first);
+    var repeatedMigration = migrator.migrate(first);
+
+    assertEquals(5L, firstMigration.appliedChangeCount());
+    assertEquals(0L, repeatedMigration.appliedChangeCount());
+    assertTrue(repeatedMigration.status().current());
+    assertTrue(tableExists(database, first, "actor"));
+    assertFalse(tableExists(database, second, "actor"));
+    assertEquals(5L, changeSetCount(database, first));
+
+    migrator.migrate(second);
+
+    assertTrue(tableExists(database, second, "actor"));
+    assertEquals(5L, changeSetCount(database, second));
+    assertNullProviderIdentityIsUnique(database, second);
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  void resetsPooledConnectionToPublicAfterMigration(PostgreSqlTestContainer database)
+      throws Exception {
+    TenantSchema tenant = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
+    database.createSchema(tenant.value());
+
+    PGPoolingDataSource pool = new PGPoolingDataSource();
+    pool.setDataSourceName("forwardmeasure-jpa-" + UUID.randomUUID());
+    pool.setUrl(database.hostJdbcUrl());
+    pool.setUser(database.username());
+    pool.setPassword(database.password());
+    pool.setInitialConnections(1);
+    pool.setMaxConnections(1);
+    try {
+      new TenantSchemaMigrator(pool).migrate(tenant);
+      try (var connection = pool.getConnection()) {
+        assertEquals(TenantSchema.PUBLIC.value(), connection.getSchema());
+      }
+    } finally {
+      pool.close();
     }
+  }
 
-    @Test
-    void migratesEachTenantIndependentlyAndIsIdempotent(
-            PostgreSqlTestContainer database) throws Exception {
-        TenantSchema first = TenantSchema.forTenant(
-                new TenantId(UUID.randomUUID()));
-        TenantSchema second = TenantSchema.forTenant(
-                new TenantId(UUID.randomUUID()));
-        database.createSchema(first.value());
-        database.createSchema(second.value());
-        TenantSchemaMigrator migrator =
-                new TenantSchemaMigrator(database.dataSource());
+  @Test
+  void upgradesAnExistingDataFabricSchemaWithoutReplayingLegacyChanges(
+      PostgreSqlTestContainer database) throws Exception {
+    TenantSchema tenant = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
+    database.createSchema(tenant.value());
 
-        assertTrue(migrator.validate(first).valid());
-        assertEquals(5L, migrator.status(first).pendingCount());
+    TenantSchemaMigrator legacyMigrator =
+        new TenantSchemaMigrator(
+            database.dataSource(),
+            "db/changelog/data-fabric-core-changelog.xml",
+            getClass().getClassLoader());
+    TenantSchemaMigrator forwardMeasureMigrator = new TenantSchemaMigrator(database.dataSource());
 
-        var firstMigration = migrator.migrate(first);
-        var repeatedMigration = migrator.migrate(first);
+    assertEquals(3L, legacyMigrator.migrate(tenant).appliedChangeCount());
+    assertEquals(3L, changeSetCount(database, tenant));
 
-        assertEquals(5L, firstMigration.appliedChangeCount());
-        assertEquals(0L, repeatedMigration.appliedChangeCount());
-        assertTrue(repeatedMigration.status().current());
-        assertTrue(tableExists(database, first, "actor"));
-        assertFalse(tableExists(database, second, "actor"));
-        assertEquals(5L, changeSetCount(database, first));
+    var upgrade = forwardMeasureMigrator.migrate(tenant);
 
-        migrator.migrate(second);
+    assertEquals(2L, upgrade.appliedChangeCount());
+    assertTrue(upgrade.status().current());
+    assertEquals(5L, changeSetCount(database, tenant));
+    assertTrue(tableExists(database, tenant, "actor"));
+  }
 
-        assertTrue(tableExists(database, second, "actor"));
-        assertEquals(5L, changeSetCount(database, second));
-        assertNullProviderIdentityIsUnique(database, second);
+  private boolean tableExists(PostgreSqlTestContainer database, TenantSchema schema, String table)
+      throws Exception {
+    try (var connection = database.dataSource().getConnection();
+        var statement =
+            connection.prepareStatement(
+                "select count(*) from information_schema.tables"
+                    + " where table_schema = ? and table_name = ?")) {
+      statement.setString(1, schema.value());
+      statement.setString(2, table);
+      try (var result = statement.executeQuery()) {
+        result.next();
+        return result.getLong(1) == 1L;
+      }
     }
+  }
 
-    @Test
-    @SuppressWarnings("deprecation")
-    void resetsPooledConnectionToPublicAfterMigration(
-            PostgreSqlTestContainer database) throws Exception {
-        TenantSchema tenant = TenantSchema.forTenant(
-                new TenantId(UUID.randomUUID()));
-        database.createSchema(tenant.value());
-
-        PGPoolingDataSource pool = new PGPoolingDataSource();
-        pool.setDataSourceName(
-                "forwardmeasure-jpa-" + UUID.randomUUID());
-        pool.setUrl(database.hostJdbcUrl());
-        pool.setUser(database.username());
-        pool.setPassword(database.password());
-        pool.setInitialConnections(1);
-        pool.setMaxConnections(1);
-        try {
-            new TenantSchemaMigrator(pool).migrate(tenant);
-            try (var connection = pool.getConnection()) {
-                assertEquals(
-                        TenantSchema.PUBLIC.value(),
-                        connection.getSchema());
-            }
-        } finally {
-            pool.close();
-        }
+  private long changeSetCount(PostgreSqlTestContainer database, TenantSchema schema)
+      throws Exception {
+    try (var connection = database.dataSource().getConnection()) {
+      connection.setSchema(schema.value());
+      try (var statement = connection.createStatement();
+          var result = statement.executeQuery("select count(*) from databasechangelog")) {
+        result.next();
+        return result.getLong(1);
+      }
     }
+  }
 
-    @Test
-    void upgradesAnExistingDataFabricSchemaWithoutReplayingLegacyChanges(
-            PostgreSqlTestContainer database) throws Exception {
-        TenantSchema tenant = TenantSchema.forTenant(
-                new TenantId(UUID.randomUUID()));
-        database.createSchema(tenant.value());
-
-        TenantSchemaMigrator legacyMigrator = new TenantSchemaMigrator(
-                database.dataSource(),
-                "db/changelog/data-fabric-core-changelog.xml",
-                getClass().getClassLoader());
-        TenantSchemaMigrator forwardMeasureMigrator =
-                new TenantSchemaMigrator(database.dataSource());
-
-        assertEquals(3L, legacyMigrator.migrate(tenant).appliedChangeCount());
-        assertEquals(3L, changeSetCount(database, tenant));
-
-        var upgrade = forwardMeasureMigrator.migrate(tenant);
-
-        assertEquals(2L, upgrade.appliedChangeCount());
-        assertTrue(upgrade.status().current());
-        assertEquals(5L, changeSetCount(database, tenant));
-        assertTrue(tableExists(database, tenant, "actor"));
-    }
-
-    private boolean tableExists(
-            PostgreSqlTestContainer database,
-            TenantSchema schema,
-            String table) throws Exception {
-        try (var connection = database.dataSource().getConnection();
-                var statement = connection.prepareStatement(
-                        "select count(*) from information_schema.tables"
-                                + " where table_schema = ? and table_name = ?")) {
-            statement.setString(1, schema.value());
-            statement.setString(2, table);
-            try (var result = statement.executeQuery()) {
-                result.next();
-                return result.getLong(1) == 1L;
-            }
-        }
-    }
-
-    private long changeSetCount(
-            PostgreSqlTestContainer database,
-            TenantSchema schema) throws Exception {
-        try (var connection = database.dataSource().getConnection()) {
-            connection.setSchema(schema.value());
-            try (var statement = connection.createStatement();
-                    var result = statement.executeQuery(
-                            "select count(*) from databasechangelog")) {
-                result.next();
-                return result.getLong(1);
-            }
-        }
-    }
-
-    private void assertNullProviderIdentityIsUnique(
-            PostgreSqlTestContainer database,
-            TenantSchema schema) throws Exception {
-        String insert = """
-                insert into actor (
-                    id, version, uuid, subject_identifier, identity_type,
-                    identity_provider
-                ) values (
-                    nextval('actor_id_seq'), 0, ?, 'local-subject', 'HUMAN',
-                    null
-                )
-                """;
-        try (var connection = database.dataSource().getConnection()) {
-            connection.setSchema(schema.value());
+  private void assertNullProviderIdentityIsUnique(
+      PostgreSqlTestContainer database, TenantSchema schema) throws Exception {
+    String insert =
+        """
+        insert into actor (
+            id, version, uuid, subject_identifier, identity_type,
+            identity_provider
+        ) values (
+            nextval('actor_id_seq'), 0, ?, 'local-subject', 'HUMAN',
+            null
+        )
+        """;
+    try (var connection = database.dataSource().getConnection()) {
+      connection.setSchema(schema.value());
+      try (var statement = connection.prepareStatement(insert)) {
+        statement.setObject(1, UUID.randomUUID());
+        statement.executeUpdate();
+      }
+      assertThrows(
+          java.sql.SQLException.class,
+          () -> {
             try (var statement = connection.prepareStatement(insert)) {
-                statement.setObject(1, UUID.randomUUID());
-                statement.executeUpdate();
+              statement.setObject(1, UUID.randomUUID());
+              statement.executeUpdate();
             }
-            assertThrows(
-                    java.sql.SQLException.class,
-                    () -> {
-                        try (var statement =
-                                connection.prepareStatement(insert)) {
-                            statement.setObject(1, UUID.randomUUID());
-                            statement.executeUpdate();
-                        }
-                    });
-        }
+          });
     }
+  }
 }

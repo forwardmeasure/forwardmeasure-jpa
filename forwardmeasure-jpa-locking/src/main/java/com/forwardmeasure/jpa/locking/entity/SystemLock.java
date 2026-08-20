@@ -16,8 +16,8 @@ import lombok.experimental.SuperBuilder;
 /**
  * A named, transaction-scoped database mutex.
  *
- * <p>Rows are provisioned by application migrations. Applications must never
- * create or delete lock rows at runtime.
+ * <p>Rows are provisioned by application migrations. Applications must never create or delete lock
+ * rows at runtime.
  */
 @Entity
 @Table(name = "system_lock")
@@ -28,24 +28,23 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class SystemLock extends AbstractBaseEntity<String> {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Id
-    @NotBlank
-    @Column(name = "lock_name", nullable = false, length = 256)
-    private String lockName;
+  @Id
+  @NotBlank
+  @Column(name = "lock_name", nullable = false, length = 256)
+  private String lockName;
 
-    @Column(name = "description", length = 512)
-    private String description;
+  @Column(name = "description", length = 512)
+  private String description;
 
-    @Override
-    public String getId() {
-        return lockName;
-    }
+  @Override
+  public String getId() {
+    return lockName;
+  }
 
-    @Override
-    public void setId(String id) {
-        lockName = id;
-    }
-
+  @Override
+  public void setId(String id) {
+    lockName = id;
+  }
 }

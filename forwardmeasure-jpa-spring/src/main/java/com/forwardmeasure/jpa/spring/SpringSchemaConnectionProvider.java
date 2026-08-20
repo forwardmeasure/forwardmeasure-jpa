@@ -6,74 +6,69 @@ import java.sql.SQLException;
 import javax.sql.DataSource;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 
-public final class SpringSchemaConnectionProvider
-        implements MultiTenantConnectionProvider<String> {
+public final class SpringSchemaConnectionProvider implements MultiTenantConnectionProvider<String> {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    private final DataSource dataSource;
+  private final DataSource dataSource;
 
-    public SpringSchemaConnectionProvider(DataSource dataSource) {
-        this.dataSource = dataSource;
+  public SpringSchemaConnectionProvider(DataSource dataSource) {
+    this.dataSource = dataSource;
+  }
+
+  @Override
+  public Connection getAnyConnection() throws SQLException {
+    return dataSource.getConnection();
+  }
+
+  @Override
+  public void releaseAnyConnection(Connection connection) throws SQLException {
+    connection.close();
+  }
+
+  @Override
+  public Connection getConnection(String tenantIdentifier) throws SQLException {
+    TenantSchema schema = new TenantSchema(tenantIdentifier);
+    Connection connection = getAnyConnection();
+    try {
+      connection.setSchema(schema.value());
+      return connection;
+    } catch (SQLException exception) {
+      connection.close();
+      throw exception;
     }
+  }
 
-    @Override
-    public Connection getAnyConnection() throws SQLException {
-        return dataSource.getConnection();
+  @Override
+  public void releaseConnection(String tenantIdentifier, Connection connection)
+      throws SQLException {
+    try {
+      connection.setSchema(TenantSchema.PUBLIC.value());
+    } finally {
+      connection.close();
     }
+  }
 
-    @Override
-    public void releaseAnyConnection(Connection connection)
-            throws SQLException {
-        connection.close();
-    }
+  @Override
+  public boolean supportsAggressiveRelease() {
+    return false;
+  }
 
-    @Override
-    public Connection getConnection(String tenantIdentifier)
-            throws SQLException {
-        TenantSchema schema = new TenantSchema(tenantIdentifier);
-        Connection connection = getAnyConnection();
-        try {
-            connection.setSchema(schema.value());
-            return connection;
-        } catch (SQLException exception) {
-            connection.close();
-            throw exception;
-        }
-    }
+  @Override
+  public boolean isUnwrappableAs(Class<?> unwrapType) {
+    return unwrapType.isInstance(this);
+  }
 
-    @Override
-    public void releaseConnection(
-            String tenantIdentifier, Connection connection)
-            throws SQLException {
-        try {
-            connection.setSchema(TenantSchema.PUBLIC.value());
-        } finally {
-            connection.close();
-        }
+  @Override
+  public <T> T unwrap(Class<T> unwrapType) {
+    if (isUnwrappableAs(unwrapType)) {
+      return unwrapType.cast(this);
     }
+    throw new IllegalArgumentException("Unsupported unwrap type " + unwrapType.getName());
+  }
 
-    @Override
-    public boolean supportsAggressiveRelease() {
-        return false;
-    }
-
-    @Override
-    public boolean isUnwrappableAs(Class<?> unwrapType) {
-        return unwrapType.isInstance(this);
-    }
-
-    @Override
-    public <T> T unwrap(Class<T> unwrapType) {
-        if (isUnwrappableAs(unwrapType)) {
-            return unwrapType.cast(this);
-        }
-        throw new IllegalArgumentException(
-                "Unsupported unwrap type " + unwrapType.getName());
-    }
-
-    @Override
-    public boolean handlesConnectionSchema() {
-        return true;
-    }
+  @Override
+  public boolean handlesConnectionSchema() {
+    return true;
+  }
 }

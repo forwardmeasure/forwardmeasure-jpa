@@ -21,25 +21,20 @@ import lombok.experimental.SuperBuilder;
 @SuperBuilder
 @NoArgsConstructor
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
-public abstract class OwnedEntity<I extends Serializable>
-        extends AuditedEntity<I> {
+public abstract class OwnedEntity<I extends Serializable> extends AuditedEntity<I> {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "owner_id",
-            referencedColumnName = "id",
-            nullable = false)
-    private Actor owner;
+  @NotNull
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "owner_id", referencedColumnName = "id", nullable = false)
+  private Actor owner;
 
-    public Optional<String> getOwnerSubjectIdentifier() {
-        return Optional.ofNullable(owner)
-                .map(Actor::getSubjectIdentifier);
-    }
+  public Optional<String> getOwnerSubjectIdentifier() {
+    return Optional.ofNullable(owner).map(Actor::getSubjectIdentifier);
+  }
 
-    public boolean hasOwner() {
-        return owner != null;
-    }
+  public boolean hasOwner() {
+    return owner != null;
+  }
 }

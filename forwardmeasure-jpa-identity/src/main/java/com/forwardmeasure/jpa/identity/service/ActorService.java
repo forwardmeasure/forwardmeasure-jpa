@@ -10,17 +10,13 @@ import java.util.UUID;
 /** Application-facing actor identity persistence operations. */
 public interface ActorService extends AbstractBaseService<Actor, Long> {
 
-    Optional<Actor> findByUuid(UUID uuid);
+  Optional<Actor> findByUuid(UUID uuid);
 
-    Optional<Actor> findByIdentity(
-            String identityProvider,
-            String subjectIdentifier);
+  Optional<Actor> findByIdentity(String identityProvider, String subjectIdentifier);
 
-    List<Actor> findByEmail(String email);
+  List<Actor> findByEmail(String email);
 
-    List<Actor> findByType(IdentityType type);
+  List<Actor> findByType(IdentityType type);
 
-    boolean existsByIdentity(
-            String identityProvider,
-            String subjectIdentifier);
+  boolean existsByIdentity(String identityProvider, String subjectIdentifier);
 }

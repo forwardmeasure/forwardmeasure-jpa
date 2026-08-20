@@ -16,15 +16,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
-/**
- * Concrete entity used by every provider adapter's compatibility suite.
- */
+/** Concrete entity used by every provider adapter's compatibility suite. */
 @Entity
 @Table(name = "jpa_contract_owned_entity")
 @SequenceGenerator(
-        name = "jpa_contract_owned_entity_generator",
-        sequenceName = "jpa_contract_owned_entity_id_seq",
-        allocationSize = 1)
+    name = "jpa_contract_owned_entity_generator",
+    sequenceName = "jpa_contract_owned_entity_id_seq",
+    allocationSize = 1)
 @Getter
 @Setter
 @SuperBuilder
@@ -32,17 +30,16 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
 public class ContractOwnedEntity extends OwnedEntity<Long> {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Id
-    @GeneratedValue(
-            generator = "jpa_contract_owned_entity_generator",
-            strategy = GenerationType.SEQUENCE)
-    @Column(name = "id")
-    private Long id;
+  @Id
+  @GeneratedValue(
+      generator = "jpa_contract_owned_entity_generator",
+      strategy = GenerationType.SEQUENCE)
+  @Column(name = "id")
+  private Long id;
 
-    @NotBlank
-    @Column(name = "name", nullable = false)
-    private String name;
-
+  @NotBlank
+  @Column(name = "name", nullable = false)
+  private String name;
 }
