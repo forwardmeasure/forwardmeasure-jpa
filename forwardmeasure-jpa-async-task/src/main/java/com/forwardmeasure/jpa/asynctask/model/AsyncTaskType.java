@@ -3,23 +3,23 @@ package com.forwardmeasure.jpa.asynctask.model;
 /** Extensible application-defined asynchronous task type. */
 public interface AsyncTaskType {
 
-    AsyncTaskTypeDefinition definition();
+  AsyncTaskTypeDefinition definition();
 
-    String name();
+  String name();
 
-    default String value() {
-        return definition().value();
-    }
+  default String value() {
+    return definition().value();
+  }
 
-    default String resourceType() {
-        return definition().resourceType();
-    }
+  default String resourceType() {
+    return definition().resourceType();
+  }
 
-    default long defaultExpirySeconds() {
-        return definition().defaultExpirySeconds();
-    }
+  default long defaultExpirySeconds() {
+    return definition().defaultExpirySeconds();
+  }
 
-    default int defaultMaxAttempts() {
-        return definition().defaultMaxAttempts();
-    }
+  default int defaultMaxAttempts() {
+    return definition().defaultMaxAttempts();
+  }
 }

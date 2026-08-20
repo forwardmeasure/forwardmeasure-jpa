@@ -15,33 +15,31 @@ import lombok.Setter;
 @Entity
 @Table(name = "core_test_category")
 @SequenceGenerator(
-        name = "core_test_category_generator",
-        sequenceName = "core_test_category_seq",
-        allocationSize = 1)
+    name = "core_test_category_generator",
+    sequenceName = "core_test_category_seq",
+    allocationSize = 1)
 @Getter
 @Setter
 @NoArgsConstructor
 public class CoreTestCategory extends AbstractBaseEntity<Long> {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Id
-    @GeneratedValue(
-            generator = "core_test_category_generator",
-            strategy = GenerationType.SEQUENCE)
-    @Column(name = "category_key")
-    private Long categoryKey;
+  @Id
+  @GeneratedValue(generator = "core_test_category_generator", strategy = GenerationType.SEQUENCE)
+  @Column(name = "category_key")
+  private Long categoryKey;
 
-    @Column(name = "code", nullable = false, unique = true)
-    private String code;
+  @Column(name = "code", nullable = false, unique = true)
+  private String code;
 
-    @Override
-    public Long getId() {
-        return categoryKey;
-    }
+  @Override
+  public Long getId() {
+    return categoryKey;
+  }
 
-    @Override
-    public void setId(Long id) {
-        categoryKey = id;
-    }
+  @Override
+  public void setId(Long id) {
+    categoryKey = id;
+  }
 }

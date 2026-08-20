@@ -10,10 +10,10 @@ import jakarta.inject.Singleton;
 @ApplicationScoped
 public class QuarkusTenantScopeProducer {
 
-    @Produces
-    @Singleton
-    @DefaultBean
-    TenantScope tenantScope() {
-        return new ThreadBoundTenantScope();
-    }
+  @Produces
+  @Singleton
+  @DefaultBean
+  TenantScope tenantScope() {
+    return new ThreadBoundTenantScope();
+  }
 }

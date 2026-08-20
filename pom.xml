@@ -3,6 +3,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.forwardmeasure.platform</groupId>
+        <artifactId>forwardmeasure-platform</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../forwardmeasure-platform/pom.xml</relativePath>
+    </parent>
 
     <groupId>com.forwardmeasure.jpa</groupId>
     <artifactId>forwardmeasure-jpa-parent</artifactId>
@@ -35,47 +41,11 @@
 
     <properties>
         <revision>1.0.0</revision>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <project.build.outputTimestamp>1980-01-01T00:00:02Z</project.build.outputTimestamp>
-        <maven.compiler.release>25</maven.compiler.release>
-
-        <!-- Platform and library versions are selected only here. -->
-        <quarkus.platform.version>3.38.1</quarkus.platform.version>
-        <spring-boot.version>4.1.0</spring-boot.version>
-        <micronaut.platform.version>5.1.0</micronaut.platform.version>
+        <!-- Component-specific library versions are selected only here. -->
         <hibernate.version>7.4.5.Final</hibernate.version>
-        <jackson.version>2.22.1</jackson.version>
-        <jakarta.inject.version>2.0.1</jakarta.inject.version>
-        <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
-        <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
-        <jakarta.validation.version>3.1.1</jakarta.validation.version>
         <forwardmeasure.database-migrations.version>1.0.0</forwardmeasure.database-migrations.version>
         <forwardmeasure.testcontainers.version>1.0.0</forwardmeasure.testcontainers.version>
-        <postgresql.version>42.7.13</postgresql.version>
-        <junit.version>6.1.2</junit.version>
-        <slf4j.version>2.0.18</slf4j.version>
         <byte-buddy.version>1.18.11</byte-buddy.version>
-        <lombok.version>1.18.46</lombok.version>
-        <mapstruct.version>1.6.3</mapstruct.version>
-        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
-
-        <!-- Build plugin versions are selected only here. -->
-        <maven.clean.version>3.5.0</maven.clean.version>
-        <maven.compiler.version>3.15.0</maven.compiler.version>
-        <maven.resources.version>3.3.1</maven.resources.version>
-        <maven.surefire.version>3.5.4</maven.surefire.version>
-        <maven.failsafe.version>3.5.4</maven.failsafe.version>
-        <maven.jar.version>3.5.0</maven.jar.version>
-        <maven.install.version>3.1.4</maven.install.version>
-        <maven.deploy.version>3.1.4</maven.deploy.version>
-        <maven.site.version>3.22.0</maven.site.version>
-        <maven.source.version>3.4.0</maven.source.version>
-        <maven.javadoc.version>3.12.0</maven.javadoc.version>
-        <maven.enforcer.version>3.6.3</maven.enforcer.version>
-        <maven.dependency.version>3.9.0</maven.dependency.version>
-        <jacoco.version>0.8.15</jacoco.version>
-        <flatten.version>1.8.0</flatten.version>
         <jandex.version>3.6.0</jandex.version>
 
         <!-- Aggregate production-code quality gates. -->
@@ -101,51 +71,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <!--
-              Cross-platform libraries are imported first so their explicitly
-              selected versions win over transitive framework BOM preferences.
-            -->
-            <dependency>
-                <groupId>org.junit</groupId>
-                <artifactId>junit-bom</artifactId>
-                <version>${junit.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-bom</artifactId>
-                <version>${slf4j.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson</groupId>
-                <artifactId>jackson-bom</artifactId>
-                <version>${jackson.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>jakarta.inject</groupId>
-                <artifactId>jakarta.inject-api</artifactId>
-                <version>${jakarta.inject.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>jakarta.persistence</groupId>
-                <artifactId>jakarta.persistence-api</artifactId>
-                <version>${jakarta.persistence.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>jakarta.transaction</groupId>
-                <artifactId>jakarta.transaction-api</artifactId>
-                <version>${jakarta.transaction.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>jakarta.validation</groupId>
-                <artifactId>jakarta.validation-api</artifactId>
-                <version>${jakarta.validation.version}</version>
-            </dependency>
             <dependency>
                 <groupId>com.forwardmeasure.database</groupId>
                 <artifactId>forwardmeasure-database-migrations-liquibase</artifactId>
@@ -167,11 +92,6 @@
                 <version>${forwardmeasure.testcontainers.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>${postgresql.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>net.bytebuddy</groupId>
                 <artifactId>byte-buddy</artifactId>
                 <version>${byte-buddy.version}</version>
@@ -180,16 +100,6 @@
                 <groupId>org.hibernate.orm</groupId>
                 <artifactId>hibernate-core</artifactId>
                 <version>${hibernate.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.projectlombok</groupId>
-                <artifactId>lombok</artifactId>
-                <version>${lombok.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.mapstruct</groupId>
-                <artifactId>mapstruct</artifactId>
-                <version>${mapstruct.version}</version>
             </dependency>
 
             <!-- Reactor modules: leaf POMs never select inter-module versions. -->
@@ -252,12 +162,10 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-clean-plugin</artifactId>
-                    <version>${maven.clean.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>${maven.compiler.version}</version>
                     <configuration>
                         <release>${maven.compiler.release}</release>
                         <proc>full</proc>
@@ -290,12 +198,10 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-resources-plugin</artifactId>
-                    <version>${maven.resources.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${maven.surefire.version}</version>
                     <configuration>
                         <useModulePath>false</useModulePath>
                     </configuration>
@@ -303,7 +209,6 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>${maven.failsafe.version}</version>
                     <configuration>
                         <useModulePath>false</useModulePath>
                     </configuration>
@@ -311,32 +216,26 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>${maven.jar.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-install-plugin</artifactId>
-                    <version>${maven.install.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>${maven.deploy.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-site-plugin</artifactId>
-                    <version>${maven.site.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-source-plugin</artifactId>
-                    <version>${maven.source.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>${maven.javadoc.version}</version>
                     <configuration>
                         <doclint>all,-missing</doclint>
                     </configuration>
@@ -344,22 +243,18 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>${maven.enforcer.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <version>${maven.dependency.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
-                    <version>${jacoco.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>flatten-maven-plugin</artifactId>
-                    <version>${flatten.version}</version>
                 </plugin>
                 <plugin>
                     <groupId>io.quarkus.platform</groupId>
@@ -387,30 +282,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-enforcer-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>enforce-build</id>
-                        <goals>
-                            <goal>enforce</goal>
-                        </goals>
-                        <configuration>
-                            <rules>
-                                <requireJavaVersion>
-                                    <version>[25,26)</version>
-                                </requireJavaVersion>
-                                <requireMavenVersion>
-                                    <version>[3.9.9,4)</version>
-                                </requireMavenVersion>
-                                <banDuplicatePomDependencyVersions />
-                                <requirePluginVersions />
-                            </rules>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

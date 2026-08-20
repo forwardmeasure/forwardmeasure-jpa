@@ -32,8 +32,8 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -41,135 +41,119 @@ import org.springframework.transaction.support.TransactionTemplate;
 @SpringBootTest(classes = SpringJpaContractTest.TestApplication.class)
 class SpringJpaContractTest {
 
-    private static final PostgreSqlTestContainer DATABASE =
-            new PostgreSqlTestContainer().start();
+  private static final PostgreSqlTestContainer DATABASE = new PostgreSqlTestContainer().start();
 
-    private static final TenantSchema TENANT = TenantSchema.forTenant(
-            new TenantId(UUID.fromString(
-                    "20000000-0000-0000-0000-000000000001")));
+  private static final TenantSchema TENANT =
+      TenantSchema.forTenant(new TenantId(UUID.fromString("20000000-0000-0000-0000-000000000001")));
 
-    static {
-        DATABASE.createSchema(TENANT.value());
-        new TenantSchemaMigrator(
-                DATABASE.dataSource(),
-                "db/changelog/forwardmeasure-jpa-contract-tests.xml",
-                SpringJpaContractTest.class.getClassLoader())
-                .migrate(TENANT);
-    }
+  static {
+    DATABASE.createSchema(TENANT.value());
+    new TenantSchemaMigrator(
+            DATABASE.dataSource(),
+            "db/changelog/forwardmeasure-jpa-contract-tests.xml",
+            SpringJpaContractTest.class.getClassLoader())
+        .migrate(TENANT);
+  }
 
-    @DynamicPropertySource
-    static void databaseProperties(DynamicPropertyRegistry properties) {
-        properties.add("spring.datasource.url", DATABASE::hostJdbcUrl);
-        properties.add("spring.datasource.username", DATABASE::username);
-        properties.add("spring.datasource.password", DATABASE::password);
-        properties.add(
-                "spring.datasource.driver-class-name",
-                () -> "org.postgresql.Driver");
-        properties.add("spring.jpa.hibernate.ddl-auto", () -> "none");
-        properties.add("spring.jpa.open-in-view", () -> "false");
-    }
+  @DynamicPropertySource
+  static void databaseProperties(DynamicPropertyRegistry properties) {
+    properties.add("spring.datasource.url", DATABASE::hostJdbcUrl);
+    properties.add("spring.datasource.username", DATABASE::username);
+    properties.add("spring.datasource.password", DATABASE::password);
+    properties.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+    properties.add("spring.jpa.hibernate.ddl-auto", () -> "none");
+    properties.add("spring.jpa.open-in-view", () -> "false");
+  }
 
-    @Autowired
-    TenantScope tenantScope;
+  @Autowired TenantScope tenantScope;
 
-    @Autowired
-    TransactionTemplate transactions;
+  @Autowired TransactionTemplate transactions;
 
-    @Autowired
-    ActorRepository actors;
+  @Autowired ActorRepository actors;
 
-    @Autowired
-    ActorService actorService;
+  @Autowired ActorService actorService;
 
-    @Autowired
-    ContractOwnedEntityRepository ownedEntities;
+  @Autowired ContractOwnedEntityRepository ownedEntities;
 
-    @Autowired
-    ContractOwnedEntityService ownedEntityService;
+  @Autowired ContractOwnedEntityService ownedEntityService;
 
-    @Autowired
-    SystemLockService systemLocks;
+  @Autowired SystemLockService systemLocks;
 
-    @Autowired
-    TaskStatusHandler taskStatusHandler;
+  @Autowired TaskStatusHandler taskStatusHandler;
 
-    @Autowired
-    MultiTenantConnectionProvider<String> tenantConnections;
+  @Autowired MultiTenantConnectionProvider<String> tenantConnections;
 
-    @Test
-    void executesTheSameRepositoriesAndServicesThroughSpring() {
-        try (TenantScope.Scope ignored = tenantScope.open(TENANT)) {
-            var result = transactions.execute(status -> {
+  @Test
+  void executesTheSameRepositoriesAndServicesThroughSpring() {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT)) {
+      var result =
+          transactions.execute(
+              status -> {
                 assertNotNull(taskStatusHandler);
-                var repositoryResult = JpaPersistenceContract.verify(
-                        actors, ownedEntities);
-                var serviceResult = JpaServiceContract.verify(
-                        actorService, ownedEntityService);
+                var repositoryResult = JpaPersistenceContract.verify(actors, ownedEntities);
+                var serviceResult = JpaServiceContract.verify(actorService, ownedEntityService);
                 systemLocks.acquireLock("contract-lock");
-                assertTrue(actorService.findByUuid(
-                        serviceResult.actorUuid()).isPresent());
+                assertTrue(actorService.findByUuid(serviceResult.actorUuid()).isPresent());
                 return repositoryResult;
-            });
-            boolean present = transactions.execute(status ->
-                    actors.findByUuid(result.actorUuid()).isPresent());
-            assertTrue(present);
-        }
+              });
+      boolean present =
+          transactions.execute(status -> actors.findByUuid(result.actorUuid()).isPresent());
+      assertTrue(present);
     }
+  }
 
-    @Test
-    void unscopedPersistenceAndLockingFailClosed() {
-        assertThrows(RuntimeException.class, actors::count);
-        assertThrows(
-                org.springframework.transaction.IllegalTransactionStateException.class,
-                () -> systemLocks.acquireLock("contract-lock"));
+  @Test
+  void unscopedPersistenceAndLockingFailClosed() {
+    assertThrows(RuntimeException.class, actors::count);
+    assertThrows(
+        org.springframework.transaction.IllegalTransactionStateException.class,
+        () -> systemLocks.acquireLock("contract-lock"));
+  }
+
+  @Test
+  void servicesOwnTransactionsWhileLocksRequireACallerTransaction() {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT)) {
+      assertTrue(actorService.count() >= 0L);
+      assertThrows(
+          org.springframework.transaction.IllegalTransactionStateException.class,
+          () -> systemLocks.acquireLock("contract-lock"));
     }
+  }
 
-    @Test
-    void servicesOwnTransactionsWhileLocksRequireACallerTransaction() {
-        try (TenantScope.Scope ignored = tenantScope.open(TENANT)) {
-            assertTrue(actorService.count() >= 0L);
-            assertThrows(
-                    org.springframework.transaction.IllegalTransactionStateException.class,
-                    () -> systemLocks.acquireLock("contract-lock"));
-        }
+  @Test
+  void resetsPooledConnectionAfterTenantUse() throws Exception {
+    var tenantConnection = tenantConnections.getConnection(TENANT.value());
+    assertEquals(TENANT.value(), tenantConnection.getSchema());
+    tenantConnections.releaseConnection(TENANT.value(), tenantConnection);
+
+    var pooledConnection = tenantConnections.getAnyConnection();
+    try {
+      assertEquals(TenantSchema.PUBLIC.value(), pooledConnection.getSchema());
+    } finally {
+      tenantConnections.releaseAnyConnection(pooledConnection);
     }
+  }
 
-    @Test
-    void resetsPooledConnectionAfterTenantUse() throws Exception {
-        var tenantConnection = tenantConnections.getConnection(TENANT.value());
-        assertEquals(TENANT.value(), tenantConnection.getSchema());
-        tenantConnections.releaseConnection(TENANT.value(), tenantConnection);
+  @AfterAll
+  static void stopDatabase() {
+    DATABASE.close();
+  }
 
-        var pooledConnection = tenantConnections.getAnyConnection();
-        try {
-            assertEquals(
-                    TenantSchema.PUBLIC.value(),
-                    pooledConnection.getSchema());
-        } finally {
-            tenantConnections.releaseAnyConnection(pooledConnection);
-        }
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  @EntityScan(
+      basePackageClasses = {
+        Actor.class,
+        SystemLock.class,
+        AsyncTask.class,
+        ContractOwnedEntity.class
+      })
+  @Import({ContractOwnedEntityRepository.class, ContractOwnedEntityService.class})
+  static class TestApplication {
+
+    @Bean
+    ObjectMapper objectMapper() {
+      return new ObjectMapper();
     }
-
-    @AfterAll
-    static void stopDatabase() {
-        DATABASE.close();
-    }
-
-    @SpringBootConfiguration
-    @EnableAutoConfiguration
-    @EntityScan(basePackageClasses = {
-            Actor.class,
-            SystemLock.class,
-            AsyncTask.class,
-            ContractOwnedEntity.class})
-    @Import({
-            ContractOwnedEntityRepository.class,
-            ContractOwnedEntityService.class})
-    static class TestApplication {
-
-        @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
-    }
+  }
 }

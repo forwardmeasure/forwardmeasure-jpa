@@ -6,5 +6,4 @@ import jakarta.inject.Singleton;
 
 @Singleton
 public class ContractOwnedEntityRepository
-        extends AbstractOwnedEntityRepository<ContractOwnedEntity, Long> {
-}
+    extends AbstractOwnedEntityRepository<ContractOwnedEntity, Long> {}

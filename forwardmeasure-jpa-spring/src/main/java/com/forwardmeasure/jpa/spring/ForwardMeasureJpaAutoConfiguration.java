@@ -18,14 +18,14 @@ import javax.sql.DataSource;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
-import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
-import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 
@@ -36,93 +36,82 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnSingleCandidate(DataSource.class)
 public class ForwardMeasureJpaAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean
-    TenantScope forwardMeasureTenantScope() {
-        return new ThreadBoundTenantScope();
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  TenantScope forwardMeasureTenantScope() {
+    return new ThreadBoundTenantScope();
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    CurrentTenantIdentifierResolver<String>
-            forwardMeasureTenantIdentifierResolver(TenantScope tenantScope) {
-        return new SpringTenantIdentifierResolver(tenantScope);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  CurrentTenantIdentifierResolver<String> forwardMeasureTenantIdentifierResolver(
+      TenantScope tenantScope) {
+    return new SpringTenantIdentifierResolver(tenantScope);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    MultiTenantConnectionProvider<String> forwardMeasureConnectionProvider(
-            DataSource dataSource) {
-        return new SpringSchemaConnectionProvider(dataSource);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  MultiTenantConnectionProvider<String> forwardMeasureConnectionProvider(DataSource dataSource) {
+    return new SpringSchemaConnectionProvider(dataSource);
+  }
 
-    @Bean
-    HibernatePropertiesCustomizer forwardMeasureHibernateProperties(
-            CurrentTenantIdentifierResolver<String> tenantResolver,
-            MultiTenantConnectionProvider<String> connectionProvider) {
-        return properties -> {
-            properties.put(
-                    AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER,
-                    tenantResolver);
-            properties.put(
-                    AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER,
-                    connectionProvider);
-        };
-    }
+  @Bean
+  HibernatePropertiesCustomizer forwardMeasureHibernateProperties(
+      CurrentTenantIdentifierResolver<String> tenantResolver,
+      MultiTenantConnectionProvider<String> connectionProvider) {
+    return properties -> {
+      properties.put(AvailableSettings.MULTI_TENANT_IDENTIFIER_RESOLVER, tenantResolver);
+      properties.put(AvailableSettings.MULTI_TENANT_CONNECTION_PROVIDER, connectionProvider);
+    };
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    ActorRepository forwardMeasureActorRepository(
-            EntityManager entityManager) {
-        return repository(new ActorRepository(), entityManager);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  ActorRepository forwardMeasureActorRepository(EntityManager entityManager) {
+    return repository(new ActorRepository(), entityManager);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    ActorService forwardMeasureActorService(ActorRepository repository) {
-        return new ActorServiceImpl(repository);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  ActorService forwardMeasureActorService(ActorRepository repository) {
+    return new ActorServiceImpl(repository);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    SystemLockRepository forwardMeasureSystemLockRepository(
-            EntityManager entityManager) {
-        return repository(new SystemLockRepository(), entityManager);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  SystemLockRepository forwardMeasureSystemLockRepository(EntityManager entityManager) {
+    return repository(new SystemLockRepository(), entityManager);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    SystemLockService forwardMeasureSystemLockService(
-            SystemLockRepository repository) {
-        return new SystemLockServiceImpl(repository);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  SystemLockService forwardMeasureSystemLockService(SystemLockRepository repository) {
+    return new SystemLockServiceImpl(repository);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    AsyncTaskRepository forwardMeasureAsyncTaskRepository(
-            EntityManager entityManager) {
-        return repository(new AsyncTaskRepository(), entityManager);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  AsyncTaskRepository forwardMeasureAsyncTaskRepository(EntityManager entityManager) {
+    return repository(new AsyncTaskRepository(), entityManager);
+  }
 
-    @Bean
-    @ConditionalOnMissingBean
-    AsyncTaskService forwardMeasureAsyncTaskService(
-            AsyncTaskRepository repository) {
-        return new AsyncTaskServiceImpl(repository);
-    }
+  @Bean
+  @ConditionalOnMissingBean
+  AsyncTaskService forwardMeasureAsyncTaskService(AsyncTaskRepository repository) {
+    return new AsyncTaskServiceImpl(repository);
+  }
 
-    @Bean
-    @ConditionalOnBean(ObjectMapper.class)
-    @ConditionalOnMissingBean
-    TaskStatusHandler forwardMeasureTaskStatusHandler(
-            AsyncTaskService taskService, ObjectMapper objectMapper) {
-        return new TaskStatusHandler(taskService, objectMapper);
-    }
+  @Bean
+  @ConditionalOnBean(ObjectMapper.class)
+  @ConditionalOnMissingBean
+  TaskStatusHandler forwardMeasureTaskStatusHandler(
+      AsyncTaskService taskService, ObjectMapper objectMapper) {
+    return new TaskStatusHandler(taskService, objectMapper);
+  }
 
-    private static <R extends
-            com.forwardmeasure.jpa.core.repository.AbstractBaseRepository<
-                    ?, ?>> R repository(R repository, EntityManager context) {
-        repository.bindPersistenceContext(context);
-        return repository;
-    }
+  private static <R extends com.forwardmeasure.jpa.core.repository.AbstractBaseRepository<?, ?>>
+      R repository(R repository, EntityManager context) {
+    repository.bindPersistenceContext(context);
+    return repository;
+  }
 }

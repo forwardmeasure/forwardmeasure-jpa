@@ -8,29 +8,24 @@ import java.util.Optional;
 import java.util.UUID;
 
 /** Application-facing persistence operations for actor-owned entities. */
-public interface OwnedEntityService<
-        T extends OwnedEntity<I>, I extends Serializable>
-        extends AuditedEntityService<T, I> {
+public interface OwnedEntityService<T extends OwnedEntity<I>, I extends Serializable>
+    extends AuditedEntityService<T, I> {
 
-    List<T> findByOwnerId(Long ownerId);
+  List<T> findByOwnerId(Long ownerId);
 
-    List<T> findByOwnerSubjectIdentifier(String subjectIdentifier);
+  List<T> findByOwnerSubjectIdentifier(String subjectIdentifier);
 
-    Optional<String> findOwnerSubjectIdentifierById(I id);
+  Optional<String> findOwnerSubjectIdentifierById(I id);
 
-    Optional<String> findOwnerSubjectIdentifierByUuid(UUID uuid);
+  Optional<String> findOwnerSubjectIdentifierByUuid(UUID uuid);
 
-    long countByOwnerId(Long ownerId);
+  long countByOwnerId(Long ownerId);
 
-    boolean existsByIdAndOwnerId(I id, Long ownerId);
+  boolean existsByIdAndOwnerId(I id, Long ownerId);
 
-    boolean existsByUuidAndOwnerId(UUID uuid, Long ownerId);
+  boolean existsByUuidAndOwnerId(UUID uuid, Long ownerId);
 
-    boolean existsByIdAndOwnerSubjectIdentifier(
-            I id,
-            String subjectIdentifier);
+  boolean existsByIdAndOwnerSubjectIdentifier(I id, String subjectIdentifier);
 
-    boolean existsByUuidAndOwnerSubjectIdentifier(
-            UUID uuid,
-            String subjectIdentifier);
+  boolean existsByUuidAndOwnerSubjectIdentifier(UUID uuid, String subjectIdentifier);
 }

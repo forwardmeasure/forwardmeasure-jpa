@@ -5,16 +5,16 @@ import java.util.UUID;
 
 public record TenantId(UUID value) {
 
-    public TenantId {
-        Objects.requireNonNull(value, "value");
-    }
+  public TenantId {
+    Objects.requireNonNull(value, "value");
+  }
 
-    public static TenantId parse(String value) {
-        return new TenantId(UUID.fromString(value));
-    }
+  public static TenantId parse(String value) {
+    return new TenantId(UUID.fromString(value));
+  }
 
-    @Override
-    public String toString() {
-        return value.toString();
-    }
+  @Override
+  public String toString() {
+    return value.toString();
+  }
 }

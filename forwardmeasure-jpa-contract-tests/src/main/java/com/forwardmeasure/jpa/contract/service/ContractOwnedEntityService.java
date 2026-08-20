@@ -8,14 +8,10 @@ import jakarta.inject.Singleton;
 
 @Singleton
 public class ContractOwnedEntityService
-        extends OwnedEntityServiceImpl<
-                ContractOwnedEntity,
-                Long,
-                ContractOwnedEntityRepository> {
+    extends OwnedEntityServiceImpl<ContractOwnedEntity, Long, ContractOwnedEntityRepository> {
 
-    @Inject
-    public ContractOwnedEntityService(
-            ContractOwnedEntityRepository repository) {
-        super(repository);
-    }
+  @Inject
+  public ContractOwnedEntityService(ContractOwnedEntityRepository repository) {
+    super(repository);
+  }
 }

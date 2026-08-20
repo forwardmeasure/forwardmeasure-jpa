@@ -20,82 +20,75 @@ import org.junit.jupiter.api.Test;
 
 class TaskStatusHandlerTest {
 
-    @Test
-    void projectsFailureDetailsAndNormalizesRootApiPath() {
-        AsyncTask task = task();
-        task.setMaxAttempts(1);
-        task.markProcessing();
-        task.markFailed(
-                "PROCESSOR_FAILED",
-                "Processor failed",
-                Map.of("step", "extract"));
-        TaskStatusHandler handler = handler();
+  @Test
+  void projectsFailureDetailsAndNormalizesRootApiPath() {
+    AsyncTask task = task();
+    task.setMaxAttempts(1);
+    task.markProcessing();
+    task.markFailed("PROCESSOR_FAILED", "Processor failed", Map.of("step", "extract"));
+    TaskStatusHandler handler = handler();
 
-        Map<String, Object> projection = handler.buildStatusMap(task, "/");
+    Map<String, Object> projection = handler.buildStatusMap(task, "/");
 
-        assertEquals("failed", projection.get("status"));
-        assertEquals(
-                "/tasks/" + task.getUuid() + "/status",
-                projection.get("location"));
-        assertEquals(
-                Map.of(
-                        "error_code", "PROCESSOR_FAILED",
-                        "error_message", "Processor failed",
-                        "error_detail", Map.of("step", "extract")),
-                projection.get("error"));
-        assertTrue(handler.isFailed(task));
-        assertFalse(handler.isPending(task));
-    }
+    assertEquals("failed", projection.get("status"));
+    assertEquals("/tasks/" + task.getUuid() + "/status", projection.get("location"));
+    assertEquals(
+        Map.of(
+            "error_code", "PROCESSOR_FAILED",
+            "error_message", "Processor failed",
+            "error_detail", Map.of("step", "extract")),
+        projection.get("error"));
+    assertTrue(handler.isFailed(task));
+    assertFalse(handler.isPending(task));
+  }
 
-    @Test
-    void projectsCancelledTaskWithoutError() {
-        AsyncTask task = task();
-        task.markCancelled();
-        TaskStatusHandler handler = handler();
+  @Test
+  void projectsCancelledTaskWithoutError() {
+    AsyncTask task = task();
+    task.markCancelled();
+    TaskStatusHandler handler = handler();
 
-        Map<String, Object> projection = handler.buildStatusMap(task, null);
+    Map<String, Object> projection = handler.buildStatusMap(task, null);
 
-        assertEquals("cancelled", projection.get("status"));
-        assertNull(projection.get("error"));
-        assertTrue(handler.isCancelled(task));
-    }
+    assertEquals("cancelled", projection.get("status"));
+    assertNull(projection.get("error"));
+    assertTrue(handler.isCancelled(task));
+  }
 
-    @Test
-    void returnsEmptyResultForExternalOrAbsentPayload() {
-        AsyncTask external = task();
-        external.markProcessing();
-        external.markCompletedWithUri("object://tenant/result.json");
-        TaskStatusHandler handler = handler();
+  @Test
+  void returnsEmptyResultForExternalOrAbsentPayload() {
+    AsyncTask external = task();
+    external.markProcessing();
+    external.markCompletedWithUri("object://tenant/result.json");
+    TaskStatusHandler handler = handler();
 
-        assertTrue(handler.deserializeResult(external, Result.class).isEmpty());
+    assertTrue(handler.deserializeResult(external, Result.class).isEmpty());
 
-        AsyncTask empty = task();
-        empty.markProcessing();
-        empty.markCompleted(Map.of());
-        assertTrue(handler.deserializeResult(empty, Result.class).isEmpty());
-    }
+    AsyncTask empty = task();
+    empty.markProcessing();
+    empty.markCompleted(Map.of());
+    assertTrue(handler.deserializeResult(empty, Result.class).isEmpty());
+  }
 
-    private TaskStatusHandler handler() {
-        return new TaskStatusHandler(
-                new AsyncTaskServiceImpl(new AsyncTaskRepository()),
-                new ObjectMapper());
-    }
+  private TaskStatusHandler handler() {
+    return new TaskStatusHandler(
+        new AsyncTaskServiceImpl(new AsyncTaskRepository()), new ObjectMapper());
+  }
 
-    private AsyncTask task() {
-        OffsetDateTime timestamp = OffsetDateTime.now(ZoneOffset.UTC);
-        return AsyncTask.builder()
-                .uuid(UUID.randomUUID())
-                .createdAt(timestamp)
-                .updatedAt(timestamp)
-                .taskType(TestAsyncTaskType.EXTRACTION)
-                .resourceType("evidence")
-                .taskResourceId(UUID.randomUUID())
-                .status(AsyncTaskStatus.ACCEPTED)
-                .maxAttempts(3)
-                .expiresAt(timestamp.plusDays(1))
-                .build();
-    }
+  private AsyncTask task() {
+    OffsetDateTime timestamp = OffsetDateTime.now(ZoneOffset.UTC);
+    return AsyncTask.builder()
+        .uuid(UUID.randomUUID())
+        .createdAt(timestamp)
+        .updatedAt(timestamp)
+        .taskType(TestAsyncTaskType.EXTRACTION)
+        .resourceType("evidence")
+        .taskResourceId(UUID.randomUUID())
+        .status(AsyncTaskStatus.ACCEPTED)
+        .maxAttempts(3)
+        .expiresAt(timestamp.plusDays(1))
+        .build();
+  }
 
-    private record Result(int count) {
-    }
+  private record Result(int count) {}
 }

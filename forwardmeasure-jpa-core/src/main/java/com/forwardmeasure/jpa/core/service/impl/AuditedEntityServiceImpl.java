@@ -13,30 +13,29 @@ public class AuditedEntityServiceImpl<
         T extends AuditedEntity<I>,
         I extends Serializable,
         R extends AbstractAuditedEntityRepository<T, I>>
-        extends AbstractBaseServiceImpl<T, I, R>
-        implements AuditedEntityService<T, I> {
+    extends AbstractBaseServiceImpl<T, I, R> implements AuditedEntityService<T, I> {
 
-    protected AuditedEntityServiceImpl(R repository) {
-        super(repository);
-    }
+  protected AuditedEntityServiceImpl(R repository) {
+    super(repository);
+  }
 
-    @Override
-    public Optional<T> findByUuid(UUID uuid) {
-        return repository().findByUuid(uuid);
-    }
+  @Override
+  public Optional<T> findByUuid(UUID uuid) {
+    return repository().findByUuid(uuid);
+  }
 
-    @Override
-    public List<T> findByUuids(Collection<UUID> uuids) {
-        return repository().findByUuids(uuids);
-    }
+  @Override
+  public List<T> findByUuids(Collection<UUID> uuids) {
+    return repository().findByUuids(uuids);
+  }
 
-    @Override
-    public boolean existsByUuid(UUID uuid) {
-        return repository().existsByUuid(uuid);
-    }
+  @Override
+  public boolean existsByUuid(UUID uuid) {
+    return repository().existsByUuid(uuid);
+  }
 
-    @Override
-    public boolean deleteByUuid(UUID uuid) {
-        return repository().deleteByUuid(uuid);
-    }
+  @Override
+  public boolean deleteByUuid(UUID uuid) {
+    return repository().deleteByUuid(uuid);
+  }
 }
