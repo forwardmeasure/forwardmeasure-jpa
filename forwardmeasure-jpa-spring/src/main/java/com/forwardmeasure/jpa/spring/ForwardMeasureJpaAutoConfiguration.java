@@ -14,6 +14,7 @@ import com.forwardmeasure.jpa.locking.service.impl.SystemLockServiceImpl;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import com.forwardmeasure.jpa.tenancy.ThreadBoundTenantScope;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
@@ -28,6 +29,7 @@ import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfigur
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.orm.jpa.SharedEntityManagerCreator;
 
 /** Registers the common JPA components without Spring-specific repositories. */
 @AutoConfiguration
@@ -35,6 +37,20 @@ import org.springframework.context.annotation.Bean;
 @AutoConfigureBefore(HibernateJpaAutoConfiguration.class)
 @ConditionalOnSingleCandidate(DataSource.class)
 public class ForwardMeasureJpaAutoConfiguration {
+
+  // Verified live (2026-08-28, forwardmeasure-agent-os): spring-boot-starter-data-jpa registers
+  // EntityManagerFactory only - a directly injectable EntityManager bean only exists via
+  // @PersistenceContext field/method injection, which a @Bean factory-method parameter is not.
+  // Quarkus's ArC and Micronaut's DI container both register EntityManager as a real bean type as
+  // part of their own Hibernate ORM extensions (confirmed: neither needs this), so this is a
+  // Spring-only gap. Every @Bean method below that takes an EntityManager parameter - including
+  // this class's own forwardMeasureActorRepository et al. - was silently unsatisfiable without it.
+  // @ConditionalOnMissingBean so an application defining its own EntityManager bean is untouched.
+  @Bean
+  @ConditionalOnMissingBean(EntityManager.class)
+  EntityManager forwardMeasureEntityManager(EntityManagerFactory entityManagerFactory) {
+    return SharedEntityManagerCreator.createSharedEntityManager(entityManagerFactory);
+  }
 
   @Bean
   @ConditionalOnMissingBean
