@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.forwardmeasure.jpa</groupId>
+        <artifactId>forwardmeasure-jpa-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>forwardmeasure-jpa-testcontainers</artifactId>
+    <name>ForwardMeasure JPA Testcontainers</name>
+    <description>
+        JUnit 5 test infrastructure that hands a test class a real, already-migrated tenant schema -
+        @WithMigratedTenantSchema composes forwardmeasure-testcontainers-junit-jupiter's real
+        PostgreSQL container with forwardmeasure-jpa-liquibase's real TenantSchemaMigrator, so
+        consumers (this repo's own contract tests, and downstream product repos such as
+        forwardmeasure-entity-intelligence) never hand-roll their own container+migration
+        plumbing. Mirrors the role data-fabric's real @WithPostgreSQLTestContainer +
+        IntegrationTestBase play there (one shared, reusable piece of test infrastructure, not
+        copy-pasted setup per test class) - adapted for a plain-JUnit5, framework-neutral
+        application layer, since data-fabric's own version is a @QuarkusTestResource tied to
+        Quarkus dev-services and this repo has no such single-framework anchor.
+
+        Deliberately its own module, not folded into forwardmeasure-jpa-liquibase itself:
+        TenantSchemaMigrator is also used by real production migration-runner code, which must
+        never pull JUnit/Testcontainers onto its runtime classpath. A module by this same name and
+        package existed before a prior refactor deleted it outright (a bare PostgreSQL container
+        wrapper with no Liquibase integration at all, confirmed via git history) - this is a
+        different, Liquibase-integrated replacement, not a restoration of that old content.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>forwardmeasure-jpa-liquibase</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>forwardmeasure-jpa-tenancy</artifactId>
+        </dependency>
+        <dependency>
+            <!-- Compile scope, not test scope: this module's own classes implement JUnit 5
+                 extensions and reference PostgreSqlContainerExtension/PostgreSqlTestContainer
+                 directly - that's the whole point of this module, not an internal test-only
+                 concern. -->
+            <groupId>com.forwardmeasure.testcontainers</groupId>
+            <artifactId>forwardmeasure-testcontainers-junit-jupiter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Compile scope: MigratedTenantSchemaExtension references PostgreSqlTestContainer
+                 directly (the type its own beforeEach/parameter-resolution methods pass around). -->
+            <groupId>com.forwardmeasure.testcontainers</groupId>
+            <artifactId>forwardmeasure-testcontainers-postgresql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

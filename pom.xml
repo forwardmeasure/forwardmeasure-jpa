@@ -62,6 +62,7 @@
         <module>forwardmeasure-jpa-locking</module>
         <module>forwardmeasure-jpa-tenancy</module>
         <module>forwardmeasure-jpa-liquibase</module>
+        <module>forwardmeasure-jpa-testcontainers</module>
         <module>forwardmeasure-jpa-contract-tests</module>
         <module>forwardmeasure-jpa-quarkus</module>
         <module>forwardmeasure-jpa-spring</module>
@@ -131,6 +132,11 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>forwardmeasure-jpa-liquibase</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>forwardmeasure-jpa-testcontainers</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
