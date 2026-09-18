@@ -5,20 +5,29 @@ import com.forwardmeasure.jpa.asynctask.repository.AsyncTaskRepository;
 import com.forwardmeasure.jpa.asynctask.service.AsyncTaskService;
 import com.forwardmeasure.jpa.asynctask.service.TaskStatusHandler;
 import com.forwardmeasure.jpa.asynctask.service.impl.AsyncTaskServiceImpl;
+import com.forwardmeasure.jpa.datasource.TenantDataSourceRegistry;
+import com.forwardmeasure.jpa.datasource.TenantDataSourceTemplate;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
 import com.forwardmeasure.jpa.identity.service.ActorService;
 import com.forwardmeasure.jpa.identity.service.impl.ActorServiceImpl;
+import com.forwardmeasure.jpa.liquibase.TenantDatabaseResolver;
+import com.forwardmeasure.jpa.liquibase.TenantRegistry;
 import com.forwardmeasure.jpa.locking.repository.SystemLockRepository;
 import com.forwardmeasure.jpa.locking.service.SystemLockService;
 import com.forwardmeasure.jpa.locking.service.impl.SystemLockServiceImpl;
+import com.forwardmeasure.jpa.tenancy.FunctionalSchema;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import com.forwardmeasure.jpa.tenancy.ThreadBoundTenantScope;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import java.time.Duration;
+import java.util.Locale;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
@@ -67,8 +76,66 @@ public class ForwardMeasureJpaAutoConfiguration {
 
   @Bean
   @ConditionalOnMissingBean
-  MultiTenantConnectionProvider<String> forwardMeasureConnectionProvider(DataSource dataSource) {
-    return new SpringSchemaConnectionProvider(dataSource);
+  FunctionalSchema forwardMeasureFunctionalSchema(
+      @Value("${forwardmeasure.jpa.functional-schema}") String functionalSchema) {
+    return FunctionalSchema.valueOf(functionalSchema.toUpperCase(Locale.ROOT));
+  }
+
+  @Bean(destroyMethod = "close")
+  @ConditionalOnMissingBean
+  TenantDataSourceRegistry forwardMeasureTenantDataSourceRegistry(
+      @Value("${forwardmeasure.jpa.tenant-database.host}") String host,
+      @Value("${forwardmeasure.jpa.tenant-database.port:5432}") int port,
+      @Value("${forwardmeasure.jpa.tenant-database.username}") String username,
+      @Value("${forwardmeasure.jpa.tenant-database.password}") String password,
+      @Value("${forwardmeasure.jpa.tenant-database.minimum-idle:}") Optional<Integer> minimumIdle,
+      @Value("${forwardmeasure.jpa.tenant-database.maximum-pool-size:}")
+          Optional<Integer> maximumPoolSize,
+      @Value("${forwardmeasure.jpa.tenant-database.idle-eviction-timeout-minutes:}")
+          Optional<Long> idleEvictionTimeoutMinutes) {
+    return new TenantDataSourceRegistry(
+        new TenantDataSourceTemplate(
+            "jdbc:postgresql://" + host + ":" + port + "/",
+            username,
+            password,
+            minimumIdle.orElse(TenantDataSourceTemplate.DEFAULT_MINIMUM_IDLE),
+            maximumPoolSize.orElse(TenantDataSourceTemplate.DEFAULT_MAXIMUM_POOL_SIZE),
+            idleEvictionTimeoutMinutes
+                .map(Duration::ofMinutes)
+                .orElse(TenantDataSourceTemplate.DEFAULT_IDLE_EVICTION_TIMEOUT)));
+  }
+
+  /**
+   * @param dataSource the app's own configured {@code DataSource} (from {@code
+   *     spring.datasource.*}) - already used only for Hibernate's own tenant-agnostic operations
+   *     (dialect resolution, never real tenant data), and reused here for exactly the same reason:
+   *     it must already point at the small platform/control-plane database this class's own {@code
+   *     tenant_registry} table lives in, not any tenant's own database. One connection target
+   *     serves both purposes; no separate platform-database config is needed.
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  TenantRegistry forwardMeasureTenantRegistry(DataSource dataSource) {
+    return new TenantRegistry(dataSource);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  TenantDatabaseResolver forwardMeasureTenantDatabaseResolver(TenantRegistry registry) {
+    return new TenantDatabaseResolver(registry);
+  }
+
+  /**
+   * @param dataSource used only for {@link SpringSchemaConnectionProvider#getAnyConnection()} -
+   *     Hibernate's own tenant-agnostic operations, never real tenant data access. Points at an
+   *     administrative database, not any tenant's own database - unchanged bean, repointed at
+   *     deployment-config level, not by any code in this module.
+   */
+  @Bean
+  @ConditionalOnMissingBean
+  MultiTenantConnectionProvider<String> forwardMeasureConnectionProvider(
+      TenantDataSourceRegistry registry, FunctionalSchema functionalSchema, DataSource dataSource) {
+    return new SpringSchemaConnectionProvider(registry, functionalSchema, dataSource);
   }
 
   @Bean

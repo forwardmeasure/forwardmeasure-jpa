@@ -1,42 +1,56 @@
 package com.forwardmeasure.jpa.quarkus;
 
-import com.forwardmeasure.jpa.tenancy.TenantSchema;
-import io.agroal.api.AgroalDataSource;
+import com.forwardmeasure.jpa.datasource.TenantDataSourceRegistry;
+import com.forwardmeasure.jpa.tenancy.FunctionalSchema;
+import com.forwardmeasure.jpa.tenancy.TenantDatabase;
 import io.quarkus.arc.Unremovable;
 import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantConnectionResolver;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.sql.Connection;
 import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.hibernate.engine.jdbc.connections.spi.ConnectionProvider;
 
+/**
+ * Database-per-tenant, schema-per-product routing: each tenant identifier resolves to that tenant's
+ * own physical database (via {@link TenantDataSourceRegistry}), then {@code
+ * Connection#setSchema(String)} selects this product's own fixed {@link FunctionalSchema} within it
+ * - not a tenant-derived schema. The tenant identifier Quarkus hands in IS the real {@link
+ * TenantDatabase} value directly ({@code forwardmeasure_<alias>} - see {@code
+ * QuarkusTenantResolver}, which reads it straight off {@code TenantScope}, itself opened with a
+ * real {@link TenantDatabase} by whatever resolved the caller's identity) - no lookup needed here,
+ * since {@code TenantScope} carries the real routing target, not a bare UUID.
+ *
+ * <p>Because every connection a resolved {@link ConnectionProvider} ever hands out comes from that
+ * one tenant's own dedicated pool (never a pool shared with any other tenant), there is nothing to
+ * reset on release - unlike the old shared-Agroal-datasource/{@code setSchema}-on-borrow model, a
+ * connection returned to a tenant's own pool is guaranteed to be borrowed by that same tenant next
+ * time regardless of what schema it was last left on.
+ */
 @PersistenceUnitExtension
 @ApplicationScoped
 @Unremovable
 public class QuarkusTenantConnectionResolver implements TenantConnectionResolver {
 
-  @Inject Instance<AgroalDataSource> dataSource;
+  @Inject TenantDataSourceRegistry registry;
+  @Inject FunctionalSchema functionalSchema;
 
   @Override
   public ConnectionProvider resolve(String tenantId) {
-    TenantSchema schema = new TenantSchema(tenantId);
-    if (!dataSource.isResolvable()) {
-      throw new IllegalStateException("No active Agroal datasource is available");
-    }
-    AgroalDataSource resolved = dataSource.get();
-    return new SchemaConnectionProvider(resolved, schema);
+    TenantDatabase database = new TenantDatabase(tenantId);
+    return new SchemaConnectionProvider(registry.dataSourceFor(database), functionalSchema);
   }
 
   private static final class SchemaConnectionProvider implements ConnectionProvider {
 
     private static final long serialVersionUID = 1L;
 
-    private final AgroalDataSource dataSource;
-    private final TenantSchema schema;
+    private final DataSource dataSource;
+    private final FunctionalSchema schema;
 
-    private SchemaConnectionProvider(AgroalDataSource dataSource, TenantSchema schema) {
+    private SchemaConnectionProvider(DataSource dataSource, FunctionalSchema schema) {
       this.dataSource = dataSource;
       this.schema = schema;
     }
@@ -45,7 +59,7 @@ public class QuarkusTenantConnectionResolver implements TenantConnectionResolver
     public Connection getConnection() throws SQLException {
       Connection connection = dataSource.getConnection();
       try {
-        connection.setSchema(schema.value());
+        connection.setSchema(schema.schemaName());
         return connection;
       } catch (SQLException exception) {
         connection.close();
@@ -58,11 +72,7 @@ public class QuarkusTenantConnectionResolver implements TenantConnectionResolver
       if (connection == null || connection.isClosed()) {
         return;
       }
-      try {
-        connection.setSchema(TenantSchema.PUBLIC.value());
-      } finally {
-        connection.close();
-      }
+      connection.close();
     }
 
     @Override

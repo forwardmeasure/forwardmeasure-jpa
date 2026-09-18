@@ -67,5 +67,14 @@
             <artifactId>postgresql</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <!-- Test scope only: WithMigratedTenantSchemaTest uses this module's real changelog
+                 (db/changelog/forwardmeasure-jpa-locking.xml) as its example "extra changelog" to
+                 prove @WithMigratedTenantSchema actually applies additional changelogs beyond the
+                 framework base - this module's own production code has no dependency on locking. -->
+            <groupId>${project.groupId}</groupId>
+            <artifactId>forwardmeasure-jpa-locking</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

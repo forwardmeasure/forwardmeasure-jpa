@@ -41,6 +41,11 @@
             </dependency>
             <dependency>
                 <groupId>${project.groupId}</groupId>
+                <artifactId>forwardmeasure-jpa-datasource</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
                 <artifactId>forwardmeasure-jpa-liquibase</artifactId>
                 <version>${project.version}</version>
             </dependency>

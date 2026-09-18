@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/platform-registry.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <!--
+    Root changelog for the platform control-plane database (see TenantRegistry) - a small,
+    non-tenant database, separate from every tenant's own database, holding the authoritative
+    tenant -> database mapping. Deliberately its own root changelog, not included into
+    forwardmeasure-jpa.xml (that one is applied per tenant schema; this one is applied once, to the
+    platform database's own public schema).
+    -->
+    <changeSet id="platform-registry-001-tenant-registry" author="forwardmeasure">
+        <comment>
+            Replaces the previous "list of tenants" mechanism (scanning information_schema.schemata
+            for t_% names) with a real, authoritative registry - see TenantRegistry's own javadoc.
+        </comment>
+        <createTable tableName="tenant_registry">
+            <column name="tenant_id" type="UUID">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="tenant_did" type="VARCHAR(2048)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_tenant_registry_tenant_did"/>
+            </column>
+            <column name="alias" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_tenant_registry_alias"/>
+            </column>
+            <column name="database_name" type="VARCHAR(63)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_tenant_registry_database_name"/>
+            </column>
+            <column name="status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cell" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.forwardmeasure.platform</groupId>
         <artifactId>forwardmeasure-platform</artifactId>
-        <version>1.0.0</version>
+        <version>1.1.0</version>
         <relativePath>../forwardmeasure-platform/pom.xml</relativePath>
     </parent>
 
@@ -40,11 +40,11 @@
     </licenses>
 
     <properties>
-        <revision>1.0.0</revision>
+        <revision>1.1.0</revision>
         <!-- Component-specific library versions are selected only here. -->
         <hibernate.version>7.4.5.Final</hibernate.version>
-        <forwardmeasure.database-migrations.version>1.0.0</forwardmeasure.database-migrations.version>
-        <forwardmeasure.testcontainers.version>1.0.0</forwardmeasure.testcontainers.version>
+        <forwardmeasure.database-migrations.version>1.1.0</forwardmeasure.database-migrations.version>
+        <forwardmeasure.testcontainers.version>1.1.0</forwardmeasure.testcontainers.version>
         <byte-buddy.version>1.18.11</byte-buddy.version>
         <jandex.version>3.6.0</jandex.version>
 
@@ -61,6 +61,7 @@
         <module>forwardmeasure-jpa-async-task</module>
         <module>forwardmeasure-jpa-locking</module>
         <module>forwardmeasure-jpa-tenancy</module>
+        <module>forwardmeasure-jpa-datasource</module>
         <module>forwardmeasure-jpa-liquibase</module>
         <module>forwardmeasure-jpa-testcontainers</module>
         <module>forwardmeasure-jpa-contract-tests</module>
@@ -127,6 +128,11 @@
             <dependency>
                 <groupId>${project.groupId}</groupId>
                 <artifactId>forwardmeasure-jpa-tenancy</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>${project.groupId}</groupId>
+                <artifactId>forwardmeasure-jpa-datasource</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

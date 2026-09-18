@@ -45,6 +45,10 @@
             <artifactId>forwardmeasure-jpa-tenancy</artifactId>
         </dependency>
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>forwardmeasure-jpa-datasource</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-hibernate-orm</artifactId>
         </dependency>
@@ -72,9 +76,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- Compile scope, not test-only: QuarkusTenantDataSourceProducer/
+                 QuarkusTenantConnectionResolver now use TenantRegistry/TenantDatabaseResolver
+                 directly - resolving a tenant's database from its bare UUID requires this real
+                 (cached) lookup, since TenantDatabase is named after the tenant's own alias, not
+                 derivable from the UUID alone. -->
             <groupId>${project.groupId}</groupId>
             <artifactId>forwardmeasure-jpa-liquibase</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.forwardmeasure.testcontainers</groupId>

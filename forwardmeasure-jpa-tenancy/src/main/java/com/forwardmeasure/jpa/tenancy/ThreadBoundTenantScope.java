@@ -12,11 +12,12 @@ import java.util.Optional;
  */
 public final class ThreadBoundTenantScope implements TenantScope {
 
-  private final ThreadLocal<Deque<TenantSchema>> scopes = ThreadLocal.withInitial(ArrayDeque::new);
+  private final ThreadLocal<Deque<TenantDatabase>> scopes =
+      ThreadLocal.withInitial(ArrayDeque::new);
 
   @Override
-  public Optional<TenantSchema> current() {
-    Deque<TenantSchema> stack = scopes.get();
+  public Optional<TenantDatabase> current() {
+    Deque<TenantDatabase> stack = scopes.get();
     if (stack.isEmpty()) {
       scopes.remove();
       return Optional.empty();
@@ -25,11 +26,11 @@ public final class ThreadBoundTenantScope implements TenantScope {
   }
 
   @Override
-  public Scope open(TenantSchema schema) {
-    Objects.requireNonNull(schema, "schema");
+  public Scope open(TenantDatabase database) {
+    Objects.requireNonNull(database, "database");
     Thread owner = Thread.currentThread();
-    Deque<TenantSchema> stack = scopes.get();
-    stack.push(schema);
+    Deque<TenantDatabase> stack = scopes.get();
+    stack.push(database);
     return new Scope() {
       private boolean closed;
 
@@ -42,8 +43,8 @@ public final class ThreadBoundTenantScope implements TenantScope {
           throw new IllegalStateException(
               "Tenant scope must be closed on the thread that opened it");
         }
-        Deque<TenantSchema> current = scopes.get();
-        if (current.isEmpty() || !schema.equals(current.peek())) {
+        Deque<TenantDatabase> current = scopes.get();
+        if (current.isEmpty() || !database.equals(current.peek())) {
           throw new IllegalStateException("Tenant scopes must be closed in reverse order");
         }
         current.pop();
