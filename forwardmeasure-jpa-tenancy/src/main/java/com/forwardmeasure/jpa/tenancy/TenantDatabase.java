@@ -41,6 +41,14 @@ public record TenantDatabase(String value) {
 
   private static final String PREFIX = "forwardmeasure_";
 
+  /**
+   * Reserved: {@code forwardmeasure_control_plane} is the platform control-plane database (holding
+   * {@code tenant_registry}), which shares the tenant databases' prefix on the same Postgres
+   * instance. A tenant with this alias would be provisioned into the control plane itself, so no
+   * {@code TenantDatabase} may ever name it.
+   */
+  public static final String RESERVED_CONTROL_PLANE_ALIAS = "control_plane";
+
   // Postgres's own identifier limit is 63 bytes; PREFIX is 15, leaving 48 for the alias - safely
   // bounded well below that ceiling. Lowercase letters/digits/underscore/hyphen only: DDL in
   // OpenWorkflowTenantMigrator always double-quotes this value, so hyphens are safe to allow (a
@@ -54,6 +62,14 @@ public record TenantDatabase(String value) {
     if (!value.startsWith(PREFIX) || !ALIAS.matcher(value.substring(PREFIX.length())).matches()) {
       throw new IllegalArgumentException(
           "Tenant database must be " + PREFIX + "{a safe tenant alias}");
+    }
+    if (value.equals(PREFIX + RESERVED_CONTROL_PLANE_ALIAS)) {
+      throw new IllegalArgumentException(
+          "Tenant alias '"
+              + RESERVED_CONTROL_PLANE_ALIAS
+              + "' is reserved: "
+              + value
+              + " is the platform control-plane database");
     }
   }
 

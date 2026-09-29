@@ -24,7 +24,9 @@ import javax.sql.DataSource;
  * The authoritative tenant -&gt; database mapping, replacing the previous "list of tenants"
  * mechanism ({@code ProvisionedTenantSchemas} scanning {@code information_schema.schemata} for
  * {@code t_%} names) with a real, first-class registry table in a small, dedicated, non-tenant
- * "platform" database - separate from every tenant's own {@link TenantDatabase}.
+ * control-plane database ({@code forwardmeasure_control_plane} in every deployment - see {@link
+ * TenantDatabase#RESERVED_CONTROL_PLANE_ALIAS}) - separate from every tenant's own {@link
+ * TenantDatabase}.
  *
  * <p>{@link Did} is the canonical, universal <em>business</em> tenant identity every registration
  * is keyed by (see {@link TenantId#forDid(Did)}'s own javadoc for why); {@link TenantId} remains

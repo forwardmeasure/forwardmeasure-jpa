@@ -71,6 +71,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- Reads src/test/resources/application.yaml (the org-wide config format) - Quarkus
+                 itself only reads application.properties without this extension. -->
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-config-yaml</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-narayana-jta</artifactId>
             <scope>test</scope>

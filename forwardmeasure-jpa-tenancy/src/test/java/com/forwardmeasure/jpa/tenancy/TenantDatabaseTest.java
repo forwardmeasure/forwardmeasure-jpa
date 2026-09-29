@@ -31,6 +31,14 @@ class TenantDatabaseTest {
   }
 
   @Test
+  void neverNamesThePlatformControlPlaneDatabase() {
+    assertThrows(IllegalArgumentException.class, () -> TenantDatabase.forAlias("control_plane"));
+    assertThrows(
+        IllegalArgumentException.class, () -> new TenantDatabase("FORWARDMEASURE_CONTROL_PLANE"));
+    assertEquals("forwardmeasure_control-plane", TenantDatabase.forAlias("control-plane").value());
+  }
+
+  @Test
   void rejectsArbitraryDatabaseText() {
     assertThrows(
         IllegalArgumentException.class,
