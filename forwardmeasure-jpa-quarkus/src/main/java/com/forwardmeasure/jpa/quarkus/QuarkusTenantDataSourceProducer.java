@@ -1,16 +1,41 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.forwardmeasure.jpa.quarkus;
 
 import com.forwardmeasure.jpa.datasource.TenantDataSourceRegistry;
 import com.forwardmeasure.jpa.datasource.TenantDataSourceTemplate;
+import com.forwardmeasure.jpa.datasource.TenantPoolFactory;
 import com.forwardmeasure.jpa.liquibase.TenantDatabaseResolver;
 import com.forwardmeasure.jpa.liquibase.TenantRegistry;
 import com.forwardmeasure.jpa.tenancy.FunctionalSchema;
+import io.agroal.api.AgroalDataSource;
+import io.agroal.api.configuration.supplier.AgroalDataSourceConfigurationSupplier;
+import io.agroal.api.security.NamePrincipal;
+import io.agroal.api.security.SimplePassword;
+import io.agroal.narayana.NarayanaTransactionIntegration;
 import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Disposes;
 import jakarta.enterprise.inject.Instance;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
+import jakarta.transaction.TransactionManager;
+import jakarta.transaction.TransactionSynchronizationRegistry;
+import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
@@ -42,7 +67,17 @@ public class QuarkusTenantDataSourceProducer {
       @ConfigProperty(name = "forwardmeasure.jpa.tenant-database.maximum-pool-size")
           Optional<Integer> maximumPoolSize,
       @ConfigProperty(name = "forwardmeasure.jpa.tenant-database.idle-eviction-timeout-minutes")
-          Optional<Long> idleEvictionTimeoutMinutes) {
+          Optional<Long> idleEvictionTimeoutMinutes,
+      Instance<TransactionManager> transactionManager,
+      Instance<TransactionSynchronizationRegistry> synchronizations) {
+    // Quarkus runs Hibernate under JTA: it never commits or rolls back a connection itself, it
+    // relies on the connection being enlisted in the JTA transaction. Plain pools would leave
+    // every statement auto-committed, so a rolled-back transaction still changed the tenant
+    // database. Agroal pools enlisted through Narayana behave like Quarkus's own datasources.
+    TenantPoolFactory pools =
+        transactionManager.isResolvable() && synchronizations.isResolvable()
+            ? jtaEnlistedPools(transactionManager.get(), synchronizations.get())
+            : TenantPoolFactory.HIKARI;
     return new TenantDataSourceRegistry(
         new TenantDataSourceTemplate(
             "jdbc:postgresql://" + host + ":" + port + "/",
@@ -52,7 +87,35 @@ public class QuarkusTenantDataSourceProducer {
             maximumPoolSize.orElse(TenantDataSourceTemplate.DEFAULT_MAXIMUM_POOL_SIZE),
             idleEvictionTimeoutMinutes
                 .map(Duration::ofMinutes)
-                .orElse(TenantDataSourceTemplate.DEFAULT_IDLE_EVICTION_TIMEOUT)));
+                .orElse(TenantDataSourceTemplate.DEFAULT_IDLE_EVICTION_TIMEOUT)),
+        pools);
+  }
+
+  static TenantPoolFactory jtaEnlistedPools(
+      TransactionManager transactionManager, TransactionSynchronizationRegistry synchronizations) {
+    return (database, template) -> {
+      try {
+        return AgroalDataSource.from(
+            new AgroalDataSourceConfigurationSupplier()
+                .connectionPoolConfiguration(
+                    pool ->
+                        pool.minSize(template.minimumIdle())
+                            .initialSize(template.minimumIdle())
+                            .maxSize(template.maximumPoolSize())
+                            .transactionIntegration(
+                                new NarayanaTransactionIntegration(
+                                    transactionManager, synchronizations))
+                            .connectionFactoryConfiguration(
+                                factory ->
+                                    factory
+                                        .jdbcUrl(template.jdbcUrlPrefix() + database.value())
+                                        .principal(new NamePrincipal(template.username()))
+                                        .credential(new SimplePassword(template.password())))));
+      } catch (SQLException failure) {
+        throw new IllegalStateException(
+            "Cannot create the connection pool for tenant database " + database.value(), failure);
+      }
+    };
   }
 
   void closeTenantDataSourceRegistry(@Disposes TenantDataSourceRegistry registry) {

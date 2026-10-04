@@ -1,8 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements. See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.forwardmeasure.jpa.datasource;
 
 import com.forwardmeasure.jpa.tenancy.TenantDatabase;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
@@ -39,17 +53,30 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(TenantDataSourceRegistry.class);
 
   private final TenantDataSourceTemplate template;
+  private final TenantPoolFactory poolFactory;
   private final Clock clock;
   private final Map<TenantDatabase, Entry> pools = new ConcurrentHashMap<>();
   private final ScheduledExecutorService evictionScheduler;
 
   public TenantDataSourceRegistry(TenantDataSourceTemplate template) {
-    this(template, Clock.systemUTC(), true);
+    this(template, TenantPoolFactory.HIKARI);
+  }
+
+  /**
+   * A registry whose per-tenant pools come from {@code poolFactory}; see {@link TenantPoolFactory}.
+   */
+  public TenantDataSourceRegistry(
+      TenantDataSourceTemplate template, TenantPoolFactory poolFactory) {
+    this(template, poolFactory, Clock.systemUTC(), true);
   }
 
   private TenantDataSourceRegistry(
-      TenantDataSourceTemplate template, Clock clock, boolean selfScheduled) {
+      TenantDataSourceTemplate template,
+      TenantPoolFactory poolFactory,
+      Clock clock,
+      boolean selfScheduled) {
     this.template = Objects.requireNonNull(template, "template");
+    this.poolFactory = Objects.requireNonNull(poolFactory, "poolFactory");
     this.clock = Objects.requireNonNull(clock, "clock");
     if (selfScheduled) {
       this.evictionScheduler =
@@ -72,7 +99,7 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
    * tests control exactly when {@link #evictIdle()} runs instead of racing a background timer.
    */
   static TenantDataSourceRegistry forTesting(TenantDataSourceTemplate template, Clock clock) {
-    return new TenantDataSourceRegistry(template, clock, false);
+    return new TenantDataSourceRegistry(template, TenantPoolFactory.HIKARI, clock, false);
   }
 
   /** Returns this tenant's own pooled {@link DataSource}, building it lazily on first use. */
@@ -84,7 +111,7 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
             database,
             key -> {
               LOG.info("Opening tenant connection pool for database {}", key.value());
-              return new Entry(buildDataSource(key), now);
+              return new Entry(poolFactory.create(key, template), now);
             });
     entry.lastAccess.set(now);
     return entry.dataSource;
@@ -110,7 +137,7 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
                 LOG.info(
                     "Evicting idle tenant connection pool for database {}",
                     candidate.getKey().value());
-                candidate.getValue().dataSource.close();
+                close(candidate.getValue().dataSource);
               }
               return idle;
             });
@@ -121,35 +148,30 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
     return pools.size();
   }
 
-  private HikariDataSource buildDataSource(TenantDatabase database) {
-    HikariConfig config = new HikariConfig();
-    config.setJdbcUrl(template.jdbcUrlPrefix() + database.value());
-    config.setUsername(template.username());
-    config.setPassword(template.password());
-    config.setMinimumIdle(template.minimumIdle());
-    config.setMaximumPoolSize(template.maximumPoolSize());
-    config.setPoolName("tenant-" + database.value());
-    // A tenant's database may not be reachable/provisioned at the instant this pool object is
-    // created (e.g. eviction-timeout tests, or a registry built before its first real tenant
-    // request arrives) - connections are still attempted lazily on first real borrow.
-    config.setInitializationFailTimeout(-1);
-    return new HikariDataSource(config);
-  }
-
   @Override
   public void close() {
     if (evictionScheduler != null) {
       evictionScheduler.shutdownNow();
     }
-    pools.values().forEach(entry -> entry.dataSource.close());
+    pools.values().forEach(entry -> close(entry.dataSource));
     pools.clear();
   }
 
+  private static void close(DataSource dataSource) {
+    if (dataSource instanceof AutoCloseable closeable) {
+      try {
+        closeable.close();
+      } catch (Exception failure) {
+        LOG.warn("Failed to close a tenant connection pool", failure);
+      }
+    }
+  }
+
   private static final class Entry {
-    private final HikariDataSource dataSource;
+    private final DataSource dataSource;
     private final AtomicReference<Instant> lastAccess;
 
-    private Entry(HikariDataSource dataSource, Instant createdAt) {
+    private Entry(DataSource dataSource, Instant createdAt) {
       this.dataSource = dataSource;
       this.lastAccess = new AtomicReference<>(createdAt);
     }

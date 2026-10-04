@@ -374,6 +374,16 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.rat</groupId>
+                <artifactId>apache-rat-plugin</artifactId>
+                <configuration>
+                    <inputExcludes combine.children="append">
+                        <!-- JSON has no comment syntax to carry a header. -->
+                        <inputExclude>**/native-image/**/*.json</inputExclude>
+                    </inputExcludes>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>
