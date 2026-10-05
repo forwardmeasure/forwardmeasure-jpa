@@ -31,8 +31,12 @@ import java.util.Optional;
 
 public final class QuarkusPostgreSqlResource implements QuarkusTestResourceLifecycleManager {
 
-  // TenantScope carries TenantDatabase directly now - no TenantSchema/TenantId round-trip needed.
+  // Routing is resolved through the real tenant registry at connection acquisition.
   static final TenantDatabase TENANT_DATABASE = TenantDatabase.forAlias("contracttest");
+  static final com.forwardmeasure.jpa.tenancy.Did TENANT_DID =
+      com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:contracttest");
+  static final com.forwardmeasure.jpa.tenancy.TenantId TENANT_ID =
+      com.forwardmeasure.jpa.tenancy.TenantId.forDid(TENANT_DID);
   static final FunctionalSchema SCHEMA = FunctionalSchema.OPENWORKFLOW;
 
   private PostgreSqlTestContainer database;
@@ -52,6 +56,9 @@ public final class QuarkusPostgreSqlResource implements QuarkusTestResourceLifec
                     PostgreSqlContainerConfiguration.DEFAULT_MEMORY_SWAP_BYTES))
             .start();
     database.createSchema(SCHEMA.schemaName());
+    var registry = new com.forwardmeasure.jpa.liquibase.TenantRegistry(database.dataSource());
+    registry.migrate();
+    registry.register(TENANT_DID, "contracttest", TENANT_DATABASE);
     new LiquibaseMigrationEngine(getClass().getClassLoader())
         .migrate(
             new MigrationRequest(

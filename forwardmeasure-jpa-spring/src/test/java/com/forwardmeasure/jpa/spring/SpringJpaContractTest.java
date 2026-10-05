@@ -62,9 +62,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 @SpringBootTest(classes = SpringJpaContractTest.TestApplication.class)
 class SpringJpaContractTest {
 
-  // TenantScope now carries TenantDatabase directly - no TenantSchema/TenantId round-trip and no
-  // TenantRegistry lookup needed for this test, since the alias is known up front.
+  // Routing is resolved through the real tenant registry at connection acquisition.
   private static final TenantDatabase TENANT_DATABASE = TenantDatabase.forAlias("contracttest");
+  static final com.forwardmeasure.jpa.tenancy.Did TENANT_DID =
+      com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:contracttest");
+  static final com.forwardmeasure.jpa.tenancy.TenantId TENANT_ID =
+      com.forwardmeasure.jpa.tenancy.TenantId.forDid(TENANT_DID);
   private static final FunctionalSchema SCHEMA = FunctionalSchema.OPENWORKFLOW;
 
   private static final PostgreSqlTestContainer DATABASE =
@@ -82,6 +85,9 @@ class SpringJpaContractTest {
 
   static {
     DATABASE.createSchema(SCHEMA.schemaName());
+    var registry = new com.forwardmeasure.jpa.liquibase.TenantRegistry(DATABASE.dataSource());
+    registry.migrate();
+    registry.register(TENANT_DID, "contracttest", TENANT_DATABASE);
     new LiquibaseMigrationEngine(SpringJpaContractTest.class.getClassLoader())
         .migrate(
             new MigrationRequest(
@@ -127,7 +133,7 @@ class SpringJpaContractTest {
 
   @Test
   void executesTheSameRepositoriesAndServicesThroughSpring() {
-    try (TenantScope.Scope ignored = tenantScope.open(TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT_ID)) {
       var result =
           transactions.execute(
               status -> {
@@ -154,7 +160,7 @@ class SpringJpaContractTest {
 
   @Test
   void servicesOwnTransactionsWhileLocksRequireACallerTransaction() {
-    try (TenantScope.Scope ignored = tenantScope.open(TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT_ID)) {
       assertTrue(actorService.count() >= 0L);
       assertThrows(
           org.springframework.transaction.IllegalTransactionStateException.class,
@@ -164,11 +170,11 @@ class SpringJpaContractTest {
 
   @Test
   void tenantConnectionUsesTheFixedFunctionalSchemaNotATenantDerivedOne() throws Exception {
-    var tenantConnection = tenantConnections.getConnection(TENANT_DATABASE.value());
+    var tenantConnection = tenantConnections.getConnection(TENANT_ID.toString());
     try {
       assertEquals(SCHEMA.schemaName(), tenantConnection.getSchema());
     } finally {
-      tenantConnections.releaseConnection(TENANT_DATABASE.value(), tenantConnection);
+      tenantConnections.releaseConnection(TENANT_ID.toString(), tenantConnection);
     }
   }
 

@@ -29,6 +29,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>forwardmeasure-jpa-datasource</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.forwardmeasure.database</groupId>
             <artifactId>forwardmeasure-database-migrations-liquibase</artifactId>
         </dependency>

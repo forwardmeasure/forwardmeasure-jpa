@@ -22,6 +22,8 @@ import com.forwardmeasure.jpa.asynctask.service.AsyncTaskService;
 import com.forwardmeasure.jpa.asynctask.service.TaskStatusHandler;
 import com.forwardmeasure.jpa.asynctask.service.impl.AsyncTaskServiceImpl;
 import com.forwardmeasure.jpa.core.repository.AbstractBaseRepository;
+import com.forwardmeasure.jpa.core.repository.JpaRepositoryContext;
+import com.forwardmeasure.jpa.core.repository.JpaRepositoryTransactions;
 import com.forwardmeasure.jpa.datasource.TenantDataSourceRegistry;
 import com.forwardmeasure.jpa.datasource.TenantDataSourceTemplate;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
@@ -45,6 +47,7 @@ import io.micronaut.data.connection.jdbc.advice.DelegatingDataSource;
 import io.micronaut.transaction.TransactionOperations;
 import jakarta.inject.Singleton;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
@@ -57,6 +60,19 @@ import org.hibernate.engine.jdbc.connections.spi.MultiTenantConnectionProvider;
 /** Registers the common JPA components without Micronaut Data repositories. */
 @Factory
 public class ForwardMeasureJpaFactory {
+  @Singleton
+  @Secondary
+  @Requires(beans = EntityManagerFactory.class)
+  JpaRepositoryTransactions repositoryTransactions(EntityManagerFactory entityManagerFactory) {
+    return new JpaRepositoryTransactions(entityManagerFactory);
+  }
+
+  @Singleton
+  @Secondary
+  @Requires(beans = EntityManager.class)
+  JpaRepositoryContext repositoryContext(EntityManager entityManager) {
+    return new JpaRepositoryContext(entityManager);
+  }
 
   @Singleton
   @Secondary
@@ -133,8 +149,11 @@ public class ForwardMeasureJpaFactory {
   @Secondary
   @Requires(beans = DataSource.class)
   MultiTenantConnectionProvider<String> tenantConnectionProvider(
-      TenantDataSourceRegistry registry, FunctionalSchema functionalSchema, DataSource dataSource) {
-    return new MicronautSchemaConnectionProvider(registry, functionalSchema, dataSource);
+      TenantDataSourceRegistry registry,
+      TenantDatabaseResolver resolver,
+      FunctionalSchema functionalSchema,
+      DataSource dataSource) {
+    return new MicronautSchemaConnectionProvider(registry, resolver, functionalSchema, dataSource);
   }
 
   @Singleton

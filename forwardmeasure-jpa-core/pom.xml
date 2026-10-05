@@ -41,6 +41,22 @@
             <artifactId>jakarta.transaction-api</artifactId>
         </dependency>
         <dependency>
+            <!-- The transaction API's TransactionScoped is annotated with CDI's @NormalScope, but
+                 the transaction API declares the CDI API only as provided. Without it, every
+                 consumer that compiles with -Xlint and -Werror fails on "class file for
+                 jakarta.enterprise.context.NormalScope not found". Declared here once so that no
+                 consumer has to repeat it. The EL API is excluded: nothing here uses it, and it
+                 duplicates classes shipped by embedded servlet containers. -->
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>jakarta.el</groupId>
+                    <artifactId>jakarta.el-api</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
@@ -57,7 +73,9 @@
         <dependency>
             <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-core</artifactId>
-            <scope>test</scope>
+            <!-- JpaRepositoryTransactions uses explicit tenant sessions. Framework bindings
+                 supply their provider; do not impose it on every core API consumer. -->
+            <optional>true</optional>
         </dependency>
         <dependency>
             <groupId>net.bytebuddy</groupId>

@@ -28,25 +28,27 @@ import java.util.Optional;
  */
 public final class ThreadBoundTenantScope implements TenantScope {
 
-  private final ThreadLocal<Deque<TenantDatabase>> scopes =
-      ThreadLocal.withInitial(ArrayDeque::new);
+  private record Frame(TenantId tenantId) {}
+
+  private final ThreadLocal<Deque<Frame>> scopes = ThreadLocal.withInitial(ArrayDeque::new);
 
   @Override
-  public Optional<TenantDatabase> current() {
-    Deque<TenantDatabase> stack = scopes.get();
+  public Optional<TenantId> current() {
+    Deque<Frame> stack = scopes.get();
     if (stack.isEmpty()) {
       scopes.remove();
       return Optional.empty();
     }
-    return Optional.of(stack.peek());
+    return Optional.of(stack.peek().tenantId());
   }
 
   @Override
-  public Scope open(TenantDatabase database) {
-    Objects.requireNonNull(database, "database");
+  public Scope open(TenantId tenantId) {
+    Objects.requireNonNull(tenantId, "tenantId");
     Thread owner = Thread.currentThread();
-    Deque<TenantDatabase> stack = scopes.get();
-    stack.push(database);
+    Deque<Frame> stack = scopes.get();
+    Frame frame = new Frame(tenantId);
+    stack.push(frame);
     return new Scope() {
       private boolean closed;
 
@@ -59,8 +61,8 @@ public final class ThreadBoundTenantScope implements TenantScope {
           throw new IllegalStateException(
               "Tenant scope must be closed on the thread that opened it");
         }
-        Deque<TenantDatabase> current = scopes.get();
-        if (current.isEmpty() || !database.equals(current.peek())) {
+        Deque<Frame> current = scopes.get();
+        if (current.isEmpty() || current.peek() != frame) {
           throw new IllegalStateException("Tenant scopes must be closed in reverse order");
         }
         current.pop();

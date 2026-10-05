@@ -29,8 +29,10 @@ class TenantScopeTest {
   @Test
   void nestedScopeRestoresAndThenClearsTenant() {
     ThreadBoundTenantScope scope = new ThreadBoundTenantScope();
-    TenantDatabase first = TenantDatabase.forAlias("lux");
-    TenantDatabase second = TenantDatabase.forAlias("acme");
+    TenantId first =
+        TenantId.forDid(com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:lux"));
+    TenantId second =
+        TenantId.forDid(com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:acme"));
 
     try (TenantScope.Scope ignored = scope.open(first)) {
       assertEquals(first, scope.currentRequired());
@@ -46,9 +48,25 @@ class TenantScopeTest {
   @Test
   void scopesMustCloseInReverseOrder() {
     ThreadBoundTenantScope scope = new ThreadBoundTenantScope();
-    TenantScope.Scope outer = scope.open(TenantDatabase.forAlias("lux"));
-    TenantScope.Scope inner = scope.open(TenantDatabase.forAlias("acme"));
+    TenantScope.Scope outer =
+        scope.open(
+            TenantId.forDid(com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:lux")));
+    TenantScope.Scope inner =
+        scope.open(
+            TenantId.forDid(com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:acme")));
 
+    assertThrows(IllegalStateException.class, outer::close);
+    inner.close();
+    outer.close();
+    assertTrue(scope.current().isEmpty());
+  }
+
+  @Test
+  void scopesForTheSameTenantMustAlsoCloseInReverseOrder() {
+    ThreadBoundTenantScope scope = new ThreadBoundTenantScope();
+    TenantId tenant = TenantId.forDid(Did.parse("did:fwmtest:tenant:lux"));
+    TenantScope.Scope outer = scope.open(tenant);
+    TenantScope.Scope inner = scope.open(tenant);
     assertThrows(IllegalStateException.class, outer::close);
     inner.close();
     outer.close();
@@ -58,7 +76,9 @@ class TenantScopeTest {
   @Test
   void scopeCannotBeClosedFromAnotherThread() throws Exception {
     ThreadBoundTenantScope scope = new ThreadBoundTenantScope();
-    TenantScope.Scope tenant = scope.open(TenantDatabase.forAlias("lux"));
+    TenantScope.Scope tenant =
+        scope.open(
+            TenantId.forDid(com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:lux")));
 
     try (var executor = Executors.newSingleThreadExecutor()) {
       ExecutionException failure =

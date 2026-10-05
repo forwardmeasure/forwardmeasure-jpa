@@ -96,7 +96,6 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-narayana-jta</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <!-- Compile scope, not test-only: QuarkusTenantDataSourceProducer/

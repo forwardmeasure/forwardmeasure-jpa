@@ -21,6 +21,8 @@ import com.forwardmeasure.jpa.asynctask.repository.AsyncTaskRepository;
 import com.forwardmeasure.jpa.asynctask.service.AsyncTaskService;
 import com.forwardmeasure.jpa.asynctask.service.TaskStatusHandler;
 import com.forwardmeasure.jpa.asynctask.service.impl.AsyncTaskServiceImpl;
+import com.forwardmeasure.jpa.core.repository.JpaRepositoryContext;
+import com.forwardmeasure.jpa.core.repository.JpaRepositoryTransactions;
 import com.forwardmeasure.jpa.datasource.TenantDataSourceRegistry;
 import com.forwardmeasure.jpa.datasource.TenantDataSourceTemplate;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
@@ -62,6 +64,18 @@ import org.springframework.orm.jpa.SharedEntityManagerCreator;
 @AutoConfigureBefore(HibernateJpaAutoConfiguration.class)
 @ConditionalOnSingleCandidate(DataSource.class)
 public class ForwardMeasureJpaAutoConfiguration {
+  @Bean
+  @ConditionalOnMissingBean
+  JpaRepositoryTransactions forwardMeasureRepositoryTransactions(
+      EntityManagerFactory entityManagerFactory) {
+    return new JpaRepositoryTransactions(entityManagerFactory);
+  }
+
+  @Bean
+  @ConditionalOnMissingBean
+  JpaRepositoryContext forwardMeasureRepositoryContext(EntityManager entityManager) {
+    return new JpaRepositoryContext(entityManager);
+  }
 
   // Verified live (2026-08-28, forwardmeasure-agent-os): spring-boot-starter-data-jpa registers
   // EntityManagerFactory only - a directly injectable EntityManager bean only exists via
@@ -150,8 +164,11 @@ public class ForwardMeasureJpaAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean
   MultiTenantConnectionProvider<String> forwardMeasureConnectionProvider(
-      TenantDataSourceRegistry registry, FunctionalSchema functionalSchema, DataSource dataSource) {
-    return new SpringSchemaConnectionProvider(registry, functionalSchema, dataSource);
+      TenantDataSourceRegistry registry,
+      TenantDatabaseResolver resolver,
+      FunctionalSchema functionalSchema,
+      DataSource dataSource) {
+    return new SpringSchemaConnectionProvider(registry, resolver, functionalSchema, dataSource);
   }
 
   @Bean

@@ -16,7 +16,6 @@
  */
 package com.forwardmeasure.jpa.quarkus;
 
-import com.forwardmeasure.jpa.tenancy.TenantDatabase;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import io.quarkus.hibernate.orm.PersistenceUnitExtension;
 import io.quarkus.hibernate.orm.runtime.tenant.TenantResolver;
@@ -40,11 +39,11 @@ public class QuarkusTenantResolver implements TenantResolver {
 
   @Override
   public String getDefaultTenantId() {
-    return TenantDatabase.UNBOUND_IDENTIFIER;
+    return TenantScope.UNBOUND_IDENTIFIER;
   }
 
   @Override
   public String resolveTenantId() {
-    return tenantScope.currentRequired().value();
+    return tenantScope.currentRequired().toString();
   }
 }

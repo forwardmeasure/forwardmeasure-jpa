@@ -65,7 +65,7 @@ class QuarkusJpaContractTest {
 
   @Test
   void executesTheSameRepositoriesAndServicesThroughQuarkus() throws Exception {
-    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_ID)) {
       transaction.begin();
       try {
         assertNotNull(taskStatusHandler);
@@ -91,7 +91,7 @@ class QuarkusJpaContractTest {
   void rollingBackATransactionDiscardsItsTenantDatabaseWrites() throws Exception {
     java.util.UUID actorUuid;
     java.util.UUID entityUuid;
-    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_ID)) {
       transaction.begin();
       try {
         var actor = new com.forwardmeasure.jpa.identity.entity.Actor();
@@ -135,14 +135,14 @@ class QuarkusJpaContractTest {
   @Test
   void resolvesTheExplicitTenantScopeForHibernate() {
     QuarkusTenantResolver resolver = new QuarkusTenantResolver(tenantScope);
-    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_DATABASE)) {
-      assertEquals(QuarkusPostgreSqlResource.TENANT_DATABASE.value(), resolver.resolveTenantId());
+    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_ID)) {
+      assertEquals(QuarkusPostgreSqlResource.TENANT_ID.toString(), resolver.resolveTenantId());
     }
   }
 
   @Test
   void servicesOwnTransactionsWhileLocksRequireACallerTransaction() {
-    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_ID)) {
       assertTrue(actorService.count() >= 0L);
       assertThrows(
           jakarta.transaction.TransactionalException.class,
@@ -152,12 +152,41 @@ class QuarkusJpaContractTest {
 
   @Test
   void tenantConnectionUsesTheFixedFunctionalSchemaNotATenantDerivedOne() throws Exception {
-    var provider = tenantConnections.resolve(QuarkusPostgreSqlResource.TENANT_DATABASE.value());
+    var provider = tenantConnections.resolve(QuarkusPostgreSqlResource.TENANT_ID.toString());
     var tenantConnection = provider.getConnection();
     try {
       assertEquals(QuarkusPostgreSqlResource.SCHEMA.schemaName(), tenantConnection.getSchema());
     } finally {
       provider.closeConnection(tenantConnection);
+    }
+  }
+
+  @Test
+  void cachedProviderRejectsNewConnectionsAfterDeactivation() throws Exception {
+    var provider = tenantConnections.resolve(QuarkusPostgreSqlResource.TENANT_ID.toString());
+    provider.closeConnection(provider.getConnection());
+    try {
+      setTenantStatus("DEPROVISIONING");
+      var rejection =
+          assertThrows(
+              io.quarkus.narayana.jta.QuarkusTransactionException.class, provider::getConnection);
+      org.junit.jupiter.api.Assertions.assertInstanceOf(
+          IllegalStateException.class, rejection.getCause());
+      setTenantStatus("ACTIVE");
+      provider.closeConnection(provider.getConnection());
+    } finally {
+      setTenantStatus("ACTIVE");
+    }
+  }
+
+  private void setTenantStatus(String status) throws Exception {
+    try (var connection = dataSource.getConnection();
+        var update =
+            connection.prepareStatement(
+                "UPDATE tenant_registry SET status = ? WHERE tenant_id = ?")) {
+      update.setString(1, status);
+      update.setObject(2, QuarkusPostgreSqlResource.TENANT_ID.value());
+      assertEquals(1, update.executeUpdate());
     }
   }
 

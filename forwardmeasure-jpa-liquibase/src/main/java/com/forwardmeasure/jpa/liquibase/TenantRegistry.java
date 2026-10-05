@@ -53,9 +53,8 @@ import javax.sql.DataSource;
  * metadata carry a UUID, not an alias) genuinely requires the lookup this class provides, not just
  * bookkeeping. Provisioning code that already has the alias in hand (a migration Job iterating its
  * own tenant list) should call {@link TenantDatabase#forAlias(String)} directly instead - no lookup
- * needed there. See {@code TenantDatabaseResolver} (same package) for a cached wrapper around
- * {@link #resolve(TenantId)}, for call sites too frequent to tolerate a real query every time (e.g.
- * Hibernate's {@code CurrentTenantIdentifierResolver}, consulted on every session open).
+ * needed there. See {@code TenantDatabaseResolver} (same package) for runtime resolution that
+ * checks ACTIVE status on every lookup.
  *
  * <p>This class owns only the registry itself (which tenant maps to which database, and that
  * tenant's lifecycle status) - it does not create tenant databases, schemas, or roles. Migrator

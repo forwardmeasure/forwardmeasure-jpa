@@ -16,7 +16,7 @@
  */
 package com.forwardmeasure.jpa.spring;
 
-import com.forwardmeasure.jpa.tenancy.TenantDatabase;
+import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantScope;
 import org.hibernate.context.spi.CurrentTenantIdentifierResolver;
 
@@ -31,10 +31,7 @@ public final class SpringTenantIdentifierResolver
 
   @Override
   public String resolveCurrentTenantIdentifier() {
-    return tenantScope
-        .current()
-        .map(TenantDatabase::value)
-        .orElse(TenantDatabase.UNBOUND_IDENTIFIER);
+    return tenantScope.current().map(TenantId::toString).orElse(TenantScope.UNBOUND_IDENTIFIER);
   }
 
   @Override

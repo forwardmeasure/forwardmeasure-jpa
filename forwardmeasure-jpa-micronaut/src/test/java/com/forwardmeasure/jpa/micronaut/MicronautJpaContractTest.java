@@ -64,8 +64,12 @@ import org.junit.jupiter.api.TestInstance;
     includedAnnotations = Entity.class)
 class MicronautJpaContractTest implements TestPropertyProvider {
 
-  // TenantScope carries TenantDatabase directly now - no TenantSchema/TenantId round-trip needed.
+  // Routing is resolved through the real tenant registry at connection acquisition.
   private static final TenantDatabase TENANT_DATABASE = TenantDatabase.forAlias("micronauttest");
+  static final com.forwardmeasure.jpa.tenancy.Did TENANT_DID =
+      com.forwardmeasure.jpa.tenancy.Did.parse("did:fwmtest:tenant:micronauttest");
+  static final com.forwardmeasure.jpa.tenancy.TenantId TENANT_ID =
+      com.forwardmeasure.jpa.tenancy.TenantId.forDid(TENANT_DID);
   private static final FunctionalSchema SCHEMA = FunctionalSchema.OPENWORKFLOW;
 
   private static final PostgreSqlTestContainer DATABASE =
@@ -105,6 +109,9 @@ class MicronautJpaContractTest implements TestPropertyProvider {
     if (!initialized) {
       DATABASE.start();
       DATABASE.createSchema(SCHEMA.schemaName());
+      var registry = new com.forwardmeasure.jpa.liquibase.TenantRegistry(DATABASE.dataSource());
+      registry.migrate();
+      registry.register(TENANT_DID, "micronauttest", TENANT_DATABASE);
       new LiquibaseMigrationEngine(getClass().getClassLoader())
           .migrate(
               new MigrationRequest(
@@ -133,7 +140,7 @@ class MicronautJpaContractTest implements TestPropertyProvider {
 
   @Test
   void executesTheSameRepositoriesAndServicesThroughMicronaut() {
-    try (TenantScope.Scope ignored = tenantScope.open(TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT_ID)) {
       var result =
           transactions.executeWrite(
               status -> {
@@ -158,7 +165,7 @@ class MicronautJpaContractTest implements TestPropertyProvider {
 
   @Test
   void servicesOwnTransactionsWhileLocksRequireACallerTransaction() {
-    try (TenantScope.Scope ignored = tenantScope.open(TENANT_DATABASE)) {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT_ID)) {
       assertTrue(actorService.count() >= 0L);
       assertThrows(RuntimeException.class, () -> systemLocks.acquireLock("contract-lock"));
     }
@@ -166,11 +173,11 @@ class MicronautJpaContractTest implements TestPropertyProvider {
 
   @Test
   void tenantConnectionUsesTheFixedFunctionalSchemaNotATenantDerivedOne() throws Exception {
-    var tenantConnection = tenantConnections.getConnection(TENANT_DATABASE.value());
+    var tenantConnection = tenantConnections.getConnection(TENANT_ID.toString());
     try {
       assertEquals(SCHEMA.schemaName(), tenantConnection.getSchema());
     } finally {
-      tenantConnections.releaseConnection(TENANT_DATABASE.value(), tenantConnection);
+      tenantConnections.releaseConnection(TENANT_ID.toString(), tenantConnection);
     }
   }
 
