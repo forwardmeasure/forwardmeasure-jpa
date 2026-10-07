@@ -78,4 +78,17 @@ class AbstractBaseEntityTest {
       this.id = id;
     }
   }
+
+  @Test
+  void distinguishesNullTransientAndDifferentPersistentIdentifiers() {
+    TestEntity persisted = new TestEntity();
+    persisted.setId(42L);
+    TestEntity transientEntity = new TestEntity();
+    assertNotEquals(persisted, null);
+    assertNotEquals(persisted, transientEntity);
+    assertNotEquals(transientEntity, persisted);
+    TestEntity different = new TestEntity();
+    different.setId(43L);
+    assertNotEquals(persisted, different);
+  }
 }

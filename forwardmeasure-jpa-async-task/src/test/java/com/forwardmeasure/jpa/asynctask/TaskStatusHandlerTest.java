@@ -107,4 +107,39 @@ class TaskStatusHandlerTest {
   }
 
   private record Result(int count) {}
+
+  @Test
+  void distinguishesActiveCompletedFailedAndCancelledStates() {
+    TaskStatusHandler handler = handler();
+    for (AsyncTaskStatus state : AsyncTaskStatus.values()) {
+      AsyncTask task = task();
+      task.setStatus(state);
+      assertEquals(
+          java.util.Set.of(AsyncTaskStatus.ACCEPTED, AsyncTaskStatus.PROCESSING).contains(state),
+          handler.isPending(task));
+      assertEquals(state == AsyncTaskStatus.COMPLETED, handler.isCompleted(task));
+      assertEquals(state == AsyncTaskStatus.FAILED, handler.isFailed(task));
+      assertEquals(state == AsyncTaskStatus.CANCELLED, handler.isCancelled(task));
+    }
+  }
+
+  @Test
+  void preservesPartialErrorsAndHandlesMissingResourceMetadata() {
+    TaskStatusHandler handler = handler();
+    AsyncTask task = task();
+    task.setResourceType(null);
+    task.setTaskResourceId(null);
+    task.setErrorMessage("message-only failure");
+    var projection = handler.buildStatusMap(task, "/api");
+    assertEquals("", projection.get("resource_type"));
+    assertEquals("", projection.get("resource_id"));
+    Map<?, ?> error = (Map<?, ?>) projection.get("error");
+    assertEquals("message-only failure", error.get("error_message"));
+    assertNull(error.get("error_code"));
+    task.setErrorMessage(null);
+    task.setErrorDetail(Map.of("reason", "detail-only failure"));
+    error = (Map<?, ?>) handler.buildStatusMap(task, "/api").get("error");
+    assertEquals(Map.of("reason", "detail-only failure"), error.get("error_detail"));
+    assertNull(error.get("error_message"));
+  }
 }

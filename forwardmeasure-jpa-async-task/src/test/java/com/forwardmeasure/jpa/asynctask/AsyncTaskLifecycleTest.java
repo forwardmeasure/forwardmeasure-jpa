@@ -242,4 +242,101 @@ class AsyncTaskLifecycleTest {
   private OffsetDateTime now() {
     return OffsetDateTime.now(ZoneOffset.UTC);
   }
+
+  @Test
+  void classifiesEveryPersistedStateAndIncompleteRecords() {
+    for (AsyncTaskStatus state : AsyncTaskStatus.values()) {
+      AsyncTask task = task(3);
+      task.setStatus(state);
+      assertEquals(state == AsyncTaskStatus.ACCEPTED, task.isPending());
+      assertEquals(state == AsyncTaskStatus.PROCESSING, task.isProcessing());
+      assertEquals(state == AsyncTaskStatus.COMPLETED, task.isCompleted());
+      assertEquals(state == AsyncTaskStatus.FAILED, task.isFailed());
+      assertEquals(state == AsyncTaskStatus.CANCELLED, task.isCancelled());
+      boolean terminal =
+          java.util.Set.of(
+                  AsyncTaskStatus.COMPLETED,
+                  AsyncTaskStatus.FAILED,
+                  AsyncTaskStatus.CANCELLED,
+                  AsyncTaskStatus.SKIPPED)
+              .contains(state);
+      assertEquals(terminal, task.isTerminal());
+      assertEquals(terminal, state.isTerminal());
+    }
+    AsyncTask incomplete = task(3);
+    incomplete.setStatus(null);
+    assertFalse(incomplete.isTerminal());
+  }
+
+  @Test
+  void retriesRequireAnAttemptRemainingAndAScheduledRetry() {
+    AsyncTask task = task(3);
+    task.setNextRetryAt(now());
+    assertFalse(task.isRetryable(), "an unattempted task is not a retry");
+    task.setAttemptCount(1);
+    assertTrue(task.isRetryable());
+    task.setNextRetryAt(null);
+    assertFalse(task.isRetryable(), "no retry has been scheduled");
+    task.setNextRetryAt(now());
+    task.setAttemptCount(3);
+    assertFalse(task.isRetryable(), "the attempt budget is exhausted");
+  }
+
+  @Test
+  void derivesResourceTypeOnlyWhenTheCallerHasNotSuppliedOne() {
+    AsyncTask derived = task(2);
+    derived.setTaskType(com.forwardmeasure.jpa.asynctask.support.TestAsyncTaskType.EXTRACTION);
+    derived.markProcessing();
+    assertEquals(derived.getTaskType().resourceType(), derived.getResourceType());
+    AsyncTask explicit = task(2);
+    explicit.setTaskType(com.forwardmeasure.jpa.asynctask.support.TestAsyncTaskType.EXTRACTION);
+    explicit.setResourceType("custom-resource");
+    explicit.markProcessing();
+    assertEquals("custom-resource", explicit.getResourceType());
+  }
+
+  @Test
+  void missingDownstreamCountsDoNotCompleteWorkPrematurely() {
+    AsyncTask task = task(2);
+    task.markProcessing();
+    task.deferCompletion(null);
+    assertTrue(task.isProcessing());
+    assertEquals(0L, task.getProgressPayload().get("work_units_completed"));
+    task.markProgress(Map.of("work_units_expected", "unknown", "work_units_completed", "unknown"));
+    task.deferCompletion(null);
+    assertTrue(task.isProcessing());
+    assertNull(task.getCompletedAt());
+    assertEquals("downstream_completion", task.getProcessingOwner());
+    assertEquals("AWAITING_DOWNSTREAM_PROCESSING", task.getProgressPayload().get("phase"));
+  }
+
+  @Test
+  void nullPayloadsClearProgressAndPermitPayloadlessCompletion() {
+    AsyncTask task = task(2);
+    task.markProgress(Map.of("records", 3));
+    task.markProgress(null);
+    assertNull(task.getProgressPayload());
+    task.markProcessing();
+    assertThrows(IllegalArgumentException.class, () -> task.markCompletedWithUri(null));
+    assertTrue(task.isProcessing(), "an invalid URI must not complete the task");
+    task.markCompleted(null);
+    assertTrue(task.isCompleted());
+    assertNull(task.getResultPayload());
+    assertNull(task.getResultUri());
+  }
+
+  @Test
+  void leaseRenewalRequiresAnActiveOwnerAndExpirationIncludesTheBoundary() {
+    AsyncTask task = task(2);
+    OffsetDateTime timestamp = now();
+    assertFalse(task.processingLeaseExpired(timestamp));
+    assertFalse(task.extendProcessingLease("worker", timestamp.plusMinutes(1)));
+    task.markProcessing();
+    assertFalse(task.extendProcessingLease("worker", timestamp.plusMinutes(1)));
+    task.setProcessingOwner("worker");
+    task.setProcessingLeaseExpiresAt(timestamp);
+    assertTrue(task.processingLeaseExpired(timestamp));
+    assertTrue(task.extendProcessingLease("worker", timestamp.plusMinutes(1)));
+    assertFalse(task.processingLeaseExpired(timestamp));
+  }
 }

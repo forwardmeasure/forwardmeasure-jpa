@@ -70,4 +70,21 @@ class DidUrlTest {
     assertFalse(DidUrl.isDidUrl("https://example.com/a.yaml"));
     assertFalse(DidUrl.isDidUrl(null));
   }
+
+  @Test
+  void rejectsEmptyResolutionAndSchemeOnlyReferences() {
+    assertThrows(IllegalArgumentException.class, () -> BASE.resolve("/"));
+    assertThrows(IllegalArgumentException.class, () -> BASE.resolve(".."));
+    assertThrows(IllegalArgumentException.class, () -> BASE.resolve("mailto:person@example.test"));
+    assertThrows(IllegalArgumentException.class, () -> BASE.resolve("common.yaml?format=json"));
+    assertThrows(IllegalArgumentException.class, () -> DidUrl.parse("did:fwm:bundle:fei/a/./b"));
+    assertEquals(
+        "did:fwm:bundle:fei/asyncapi/folder/item:one.yaml",
+        BASE.resolve("folder/item:one.yaml").toString());
+    assertEquals(
+        "did:fwm:bundle:fei/asyncapi/common.yaml", BASE.resolve("././common.yaml").toString());
+    assertEquals(
+        "did:fwm:bundle:fei/asyncapi/common.yaml",
+        BASE.resolve("./folder//../common.yaml").toString());
+  }
 }

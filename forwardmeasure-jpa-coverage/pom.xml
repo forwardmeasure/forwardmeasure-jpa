@@ -143,6 +143,21 @@
     <build>
         <plugins>
             <plugin>
+                <groupId>com.forwardmeasure.platform</groupId>
+                <artifactId>forwardmeasure-platform-policy-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>require-coverage-data</id>
+                        <phase>verify</phase>
+                        <goals><goal>require-coverage-data</goal></goals>
+                        <configuration>
+                            <aggregateOwnsCoverage>false</aggregateOwnsCoverage>
+                            <dataFile>${project.build.directory}/jacoco-aggregate.exec</dataFile>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
@@ -224,10 +239,7 @@
                                 <format>XML</format>
                                 <format>CSV</format>
                             </formats>
-                            <excludes>
-                                <exclude>**/*_.class</exclude>
-                                <exclude>**/$*.class</exclude>
-                            </excludes>
+                            <excludes>**/*_.class,**/$*.class,${forwardmeasure.coverage.generated.excludes}</excludes>
                         </configuration>
                     </execution>
 
@@ -239,10 +251,7 @@
                         </goals>
                         <configuration>
                             <dataFile>${project.build.directory}/jacoco-aggregate.exec</dataFile>
-                            <excludes>
-                                <exclude>**/*_</exclude>
-                                <exclude>**/$*</exclude>
-                            </excludes>
+                            <excludes>**/*_,**/$*,${forwardmeasure.coverage.generated.excludes}</excludes>
                             <rules>
                                 <rule>
                                     <element>BUNDLE</element>

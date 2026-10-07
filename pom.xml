@@ -40,18 +40,14 @@
     </licenses>
 
     <properties>
-        <revision>1.1.0</revision>
+    <!-- Project release identity is local for Maven CI-friendly reactor parent resolution. -->
+    <revision>1.1.0</revision>
         <!-- Component-specific library versions are selected only here. -->
-        <hibernate.version>7.4.5.Final</hibernate.version>
-        <forwardmeasure.database-migrations.version>1.1.0</forwardmeasure.database-migrations.version>
-        <forwardmeasure.testcontainers.version>1.1.0</forwardmeasure.testcontainers.version>
-        <byte-buddy.version>1.18.11</byte-buddy.version>
-        <jandex.version>3.6.0</jandex.version>
 
         <!-- Aggregate production-code quality gates. -->
-        <jacoco.minimum.line.coverage>0.85</jacoco.minimum.line.coverage>
-        <jacoco.minimum.branch.coverage>0.75</jacoco.minimum.branch.coverage>
-        <jacoco.maximum.missed.classes>0</jacoco.maximum.missed.classes>
+        <!-- Cross-module contract tests are evaluated by this product's aggregate check.
+             Thresholds come from the platform; do not also gate each module in isolation. -->
+        <jacoco.module.check.skip>true</jacoco.module.check.skip>
     </properties>
 
     <modules>
@@ -73,36 +69,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>com.forwardmeasure.database</groupId>
-                <artifactId>forwardmeasure-database-migrations-liquibase</artifactId>
-                <version>${forwardmeasure.database-migrations.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.forwardmeasure.testcontainers</groupId>
-                <artifactId>forwardmeasure-testcontainers-postgresql</artifactId>
-                <version>${forwardmeasure.testcontainers.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.forwardmeasure.testcontainers</groupId>
-                <artifactId>forwardmeasure-testcontainers-junit-jupiter</artifactId>
-                <version>${forwardmeasure.testcontainers.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.forwardmeasure.testcontainers</groupId>
-                <artifactId>forwardmeasure-testcontainers-quarkus</artifactId>
-                <version>${forwardmeasure.testcontainers.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>net.bytebuddy</groupId>
-                <artifactId>byte-buddy</artifactId>
-                <version>${byte-buddy.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.hibernate.orm</groupId>
-                <artifactId>hibernate-core</artifactId>
-                <version>${hibernate.version}</version>
-            </dependency>
 
             <!-- Reactor modules: leaf POMs never select inter-module versions. -->
             <dependency>
@@ -271,18 +237,28 @@
                 <plugin>
                     <groupId>io.quarkus.platform</groupId>
                     <artifactId>quarkus-maven-plugin</artifactId>
-                    <version>${quarkus.platform.version}</version>
                     <extensions>true</extensions>
                 </plugin>
                 <plugin>
                     <groupId>io.smallrye</groupId>
                     <artifactId>jandex-maven-plugin</artifactId>
-                    <version>${jandex.version}</version>
                 </plugin>
             </plugins>
         </pluginManagement>
 
         <plugins>
+            <plugin>
+                <groupId>com.forwardmeasure.platform</groupId>
+                <artifactId>forwardmeasure-platform-policy-maven-plugin</artifactId>
+                <configuration>
+                    <overrides>
+                        <override>
+                            <key>property:jacoco.module.check.skip</key>
+                            <reason>Cross-module contract tests feed the product aggregate gate, which enforces the platform coverage thresholds.</reason>
+                        </override>
+                    </overrides>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

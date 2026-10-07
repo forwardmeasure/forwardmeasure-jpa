@@ -45,6 +45,10 @@ class QuarkusJpaContractTest {
 
   @Inject TenantScope tenantScope;
 
+  @Inject com.forwardmeasure.jpa.core.repository.JpaRepositoryContext repositoryContext;
+
+  @Inject com.forwardmeasure.jpa.core.repository.JpaRepositoryTransactions repositoryTransactions;
+
   @Inject UserTransaction transaction;
 
   @Inject AgroalDataSource dataSource;
@@ -62,6 +66,26 @@ class QuarkusJpaContractTest {
   @Inject SystemLockService systemLocks;
 
   @Inject TaskStatusHandler taskStatusHandler;
+
+  @Test
+  void producedRepositoryContextUsesTheManagedTenantTransaction() throws Exception {
+    assertNotNull(repositoryTransactions);
+    try (TenantScope.Scope ignored = tenantScope.open(QuarkusPostgreSqlResource.TENANT_ID)) {
+      transaction.begin();
+      try {
+        var repository =
+            repositoryContext.create(
+                entityManager -> {
+                  var result = new ActorRepository();
+                  result.bindPersistenceContext(entityManager);
+                  return result;
+                });
+        assertEquals(actors.count(), repository.count());
+      } finally {
+        transaction.rollback();
+      }
+    }
+  }
 
   @Test
   void executesTheSameRepositoriesAndServicesThroughQuarkus() throws Exception {

@@ -30,4 +30,20 @@ class PageRequestTest {
         IllegalArgumentException.class,
         () -> new PageRequest(0, PageRequest.MAXIMUM_LIMIT + 1, null));
   }
+
+  @Test
+  void copiesCollectionsAndRejectsInvalidResultBoundaries() {
+    var items = new java.util.ArrayList<>(java.util.List.of("one"));
+    var page = new Page<>(items, 1L, 0, 1);
+    items.clear();
+    org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("one"), page.items());
+    assertThrows(UnsupportedOperationException.class, () -> page.items().clear());
+    assertThrows(IllegalArgumentException.class, () -> new Page<>(java.util.List.of(), -1L, 0, 1));
+    assertThrows(IllegalArgumentException.class, () -> new Page<>(java.util.List.of(), 0L, -1, 1));
+    assertThrows(IllegalArgumentException.class, () -> new Page<>(java.util.List.of(), 0L, 0, 0));
+    assertThrows(NullPointerException.class, () -> new Page<>(null, 0L, 0, 1));
+    org.junit.jupiter.api.Assertions.assertEquals(
+        java.util.List.of(), new PageRequest(0, 1, null).sort());
+    assertThrows(IllegalArgumentException.class, () -> new SortOrder(" ", SortDirection.ASCENDING));
+  }
 }

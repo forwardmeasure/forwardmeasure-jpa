@@ -90,6 +90,8 @@ class MicronautJpaContractTest implements TestPropertyProvider {
 
   @Inject TransactionOperations<Session> transactions;
 
+  @Inject MicronautRepositoryTransactions repositoryTransactions;
+
   @Inject ActorRepository actors;
 
   @Inject ActorService actorService;
@@ -155,6 +157,61 @@ class MicronautJpaContractTest implements TestPropertyProvider {
           transactions.executeRead(status -> actors.findByUuid(result.actorUuid()).isPresent());
       assertTrue(present);
     }
+  }
+
+  @Test
+  void independentRepositoryTransactionCommitsWhileOuterTransactionRollsBack() {
+    try (TenantScope.Scope ignored = tenantScope.open(TENANT_ID)) {
+      var committed = new java.util.concurrent.atomic.AtomicReference<java.util.UUID>();
+      try {
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                transactions.executeWrite(
+                    status -> {
+                      committed.set(
+                          repositoryTransactions.execute(
+                              () -> {
+                                var actor = new com.forwardmeasure.jpa.identity.entity.Actor();
+                                actor.setSubjectIdentifier(
+                                    "independent-" + java.util.UUID.randomUUID());
+                                actor.setIdentityProvider("contract-idp");
+                                actor.setType(
+                                    com.forwardmeasure.jpa.identity.entity.IdentityType.HUMAN);
+                                actors.persistAndFlush(actor);
+                                return actor.getUuid();
+                              }));
+                      throw new IllegalStateException("roll back outer transaction");
+                    }));
+        assertNotNull(committed.get());
+        boolean present =
+            transactions.executeRead(status -> actors.findByUuid(committed.get()).isPresent());
+        assertTrue(present);
+      } finally {
+        // REQUIRES_NEW commits survive the outer rollback, so this test owns their cleanup.
+        if (committed.get() != null) {
+          transactions.executeWrite(
+              status -> {
+                actors.findByUuid(committed.get()).ifPresent(actors::delete);
+                return null;
+              });
+        }
+      }
+      boolean remains =
+          transactions.executeRead(status -> actors.findByUuid(committed.get()).isPresent());
+      org.junit.jupiter.api.Assertions.assertFalse(remains, "committed test actor was not removed");
+    }
+  }
+
+  @Test
+  void tenantConnectionProviderCannotBeUnwrappedToBypassRouting() {
+    assertTrue(tenantConnections.isUnwrappableAs(MultiTenantConnectionProvider.class));
+    org.junit.jupiter.api.Assertions.assertSame(
+        tenantConnections, tenantConnections.unwrap(MultiTenantConnectionProvider.class));
+    org.junit.jupiter.api.Assertions.assertFalse(
+        tenantConnections.isUnwrappableAs(javax.sql.DataSource.class));
+    assertThrows(
+        IllegalArgumentException.class, () -> tenantConnections.unwrap(javax.sql.DataSource.class));
   }
 
   @Test
