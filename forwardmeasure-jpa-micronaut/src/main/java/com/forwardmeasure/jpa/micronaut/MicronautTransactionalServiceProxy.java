@@ -34,11 +34,13 @@ import org.hibernate.Session;
  * implementations are deliberately compiled without a Micronaut dependency, so the adapter supplies
  * one interface proxy instead of duplicating every domain service in the Micronaut module.
  */
-final class MicronautTransactionalServiceProxy {
+public final class MicronautTransactionalServiceProxy {
 
   private MicronautTransactionalServiceProxy() {}
 
-  static <S> S create(Class<S> serviceType, S target, TransactionOperations<Session> transactions) {
+  /** Wrap a portable service interface with the injected framework transaction manager. */
+  public static <S> S create(
+      Class<S> serviceType, S target, TransactionOperations<Session> transactions) {
     Objects.requireNonNull(serviceType, "serviceType");
     Objects.requireNonNull(target, "target");
     Objects.requireNonNull(transactions, "transactions");
