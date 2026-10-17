@@ -57,6 +57,7 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
   private final Clock clock;
   private final Map<TenantDatabase, Entry> pools = new ConcurrentHashMap<>();
   private final ScheduledExecutorService evictionScheduler;
+  private volatile boolean closed;
 
   public TenantDataSourceRegistry(TenantDataSourceTemplate template) {
     this(template, TenantPoolFactory.HIKARI);
@@ -104,17 +105,32 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
 
   /** Returns this tenant's own pooled {@link DataSource}, building it lazily on first use. */
   public DataSource dataSourceFor(TenantDatabase database) {
+    return entryFor(database).routing;
+  }
+
+  private Entry entryFor(TenantDatabase database) {
     Objects.requireNonNull(database, "database");
+    if (closed) throw new IllegalStateException("Tenant data source registry is closed");
     Instant now = clock.instant();
     Entry entry =
         pools.computeIfAbsent(
             database,
             key -> {
               LOG.info("Opening tenant connection pool for database {}", key.value());
-              return new Entry(poolFactory.create(key, template), now);
+              DataSource regular = poolFactory.create(key, template);
+              DataSource routing =
+                  new ScopedTenantDataSource(
+                      () -> {
+                        if (closed)
+                          throw new IllegalStateException("Tenant data source registry is closed");
+                        DataSource deadline =
+                            TransactionDeadlineScope.currentPool(this, key, poolFactory, template);
+                        return deadline == null ? entryFor(key).dataSource : deadline;
+                      });
+              return new Entry(regular, routing, now);
             });
     entry.lastAccess.set(now);
-    return entry.dataSource;
+    return entry;
   }
 
   /**
@@ -150,6 +166,7 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
 
   @Override
   public void close() {
+    closed = true;
     if (evictionScheduler != null) {
       evictionScheduler.shutdownNow();
     }
@@ -169,10 +186,12 @@ public final class TenantDataSourceRegistry implements AutoCloseable {
 
   private static final class Entry {
     private final DataSource dataSource;
+    private final DataSource routing;
     private final AtomicReference<Instant> lastAccess;
 
-    private Entry(DataSource dataSource, Instant createdAt) {
+    private Entry(DataSource dataSource, DataSource routing, Instant createdAt) {
       this.dataSource = dataSource;
+      this.routing = routing;
       this.lastAccess = new AtomicReference<>(createdAt);
     }
   }

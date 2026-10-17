@@ -106,11 +106,15 @@ public class QuarkusTenantDataSourceProducer {
                                 new NarayanaTransactionIntegration(
                                     transactionManager, synchronizations))
                             .connectionFactoryConfiguration(
-                                factory ->
-                                    factory
-                                        .jdbcUrl(template.jdbcUrlPrefix() + database.value())
-                                        .principal(new NamePrincipal(template.username()))
-                                        .credential(new SimplePassword(template.password())))));
+                                factory -> {
+                                  factory
+                                      .jdbcUrl(template.jdbcUrlPrefix() + database.value())
+                                      .principal(new NamePrincipal(template.username()))
+                                      .credential(new SimplePassword(template.password()));
+                                  template.connectionProperties().forEach(factory::jdbcProperty);
+                                  return factory;
+                                })));
+
       } catch (SQLException failure) {
         throw new IllegalStateException(
             "Cannot create the connection pool for tenant database " + database.value(), failure);

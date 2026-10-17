@@ -60,4 +60,24 @@
             </column>
         </createTable>
     </changeSet>
+    <changeSet id="platform-registry-002-lifecycle-admission" author="forwardmeasure">
+        <createTable tableName="lifecycle_admission_instance">
+            <column name="instance_id" type="UUID"><constraints primaryKey="true" nullable="false" /></column>
+            <column name="connection_budget" type="INTEGER"><constraints nullable="false" /></column>
+        </createTable>
+        <createTable tableName="lifecycle_admission_lease">
+            <column name="instance_id" type="UUID"><constraints nullable="false" foreignKeyName="fk_admission_lease_instance" references="lifecycle_admission_instance(instance_id)" /></column>
+            <column name="slot" type="INTEGER"><constraints nullable="false" /></column>
+            <column name="holder_token" type="UUID" />
+            <column name="tenant_id" type="UUID" />
+            <column name="operation_id" type="UUID" />
+            <column name="state" type="VARCHAR(20)" defaultValue="free"><constraints nullable="false" /></column>
+            <column name="claim_deadline" type="TIMESTAMP WITH TIME ZONE" />
+            <column name="expires_at" type="TIMESTAMP WITH TIME ZONE" />
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP"><constraints nullable="false" /></column>
+        </createTable>
+        <addPrimaryKey tableName="lifecycle_admission_lease" columnNames="instance_id,slot" constraintName="pk_lifecycle_admission_lease" />
+        <sql>ALTER TABLE lifecycle_admission_instance ADD CONSTRAINT ck_admission_connection_budget CHECK (connection_budget > 0)</sql>
+        <sql>ALTER TABLE lifecycle_admission_lease ADD CONSTRAINT ck_admission_lease_state CHECK ((state = 'free' AND holder_token IS NULL AND claim_deadline IS NULL AND expires_at IS NULL) OR (state = 'claimed' AND holder_token IS NOT NULL AND tenant_id IS NOT NULL AND operation_id IS NOT NULL AND claim_deadline IS NOT NULL AND expires_at IS NULL) OR (state = 'registered' AND holder_token IS NOT NULL AND tenant_id IS NOT NULL AND operation_id IS NOT NULL AND claim_deadline IS NOT NULL AND expires_at IS NOT NULL))</sql>
+    </changeSet>
 </databaseChangeLog>

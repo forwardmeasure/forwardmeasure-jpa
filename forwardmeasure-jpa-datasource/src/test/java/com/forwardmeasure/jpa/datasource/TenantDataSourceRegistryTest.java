@@ -19,12 +19,14 @@ package com.forwardmeasure.jpa.datasource;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.forwardmeasure.jpa.tenancy.TenantDatabase;
 import com.forwardmeasure.testcontainers.junit.postgresql.WithPostgreSqlContainer;
 import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -120,6 +122,99 @@ class TenantDataSourceRegistryTest {
     registry.close();
 
     assertEquals(0, registry.poolCount());
+  }
+
+  @Test
+  void serverDeadlineAppliesBeforeBeginAndDoesNotChangeTheOrdinaryPool(
+      PostgreSqlTestContainer container) throws Exception {
+    TenantDatabase database = new TenantDatabase(container.databaseName());
+    try (TenantDataSourceRegistry registry =
+        new TenantDataSourceRegistry(realTemplate(container))) {
+      DataSource cachedProviderHandle = registry.dataSourceFor(database);
+      try (TransactionDeadlineScope scope =
+              TransactionDeadlineScope.open(database, Duration.ofSeconds(1));
+          Connection connection = cachedProviderHandle.getConnection();
+          var statement = connection.createStatement()) {
+        try (var setting =
+            statement.executeQuery(
+                "select extract(epoch from current_setting('transaction_timeout')::interval)")) {
+          assertTrue(setting.next());
+          assertEquals(1, setting.getInt(1));
+        }
+        connection.setAutoCommit(false);
+        statement.execute("select 1");
+        Thread.sleep(1500);
+        assertThrows(
+            SQLException.class,
+            () -> statement.execute("select 1"),
+            "the server must end the transaction even while the application is paused");
+      }
+      try (Connection connection = cachedProviderHandle.getConnection();
+          var statement = connection.createStatement();
+          var setting = statement.executeQuery("select current_setting('transaction_timeout')")) {
+        assertTrue(setting.next());
+        assertEquals("0", setting.getString(1));
+      }
+    }
+  }
+
+  @Test
+  void shortStatementsCannotRenewTheWholeTransactionDeadlineAndItsGuardsAreReleased(
+      PostgreSqlTestContainer container) throws Exception {
+    var database = new TenantDatabase(container.databaseName());
+    long guard = 773400102L;
+    try (var registry = new TenantDataSourceRegistry(realTemplate(container))) {
+      var provider = registry.dataSourceFor(database);
+      long started = System.nanoTime();
+      try (var scope = TransactionDeadlineScope.open(database, Duration.ofSeconds(2));
+          var connection = provider.getConnection();
+          var statement = connection.createStatement()) {
+        connection.setAutoCommit(false);
+        statement.execute("select pg_advisory_xact_lock(" + guard + ")");
+        assertThrows(
+            SQLException.class,
+            () -> {
+              for (int step = 0; step < 5; step++) statement.execute("select pg_sleep(0.6)");
+            },
+            "Individually short statements cannot reset the pre-BEGIN transaction budget");
+      }
+      assertTrue(
+          Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(5)) < 0,
+          "The total deadline applies across the statement sequence");
+      try (var connection = container.dataSource().getConnection();
+          var statement = connection.createStatement();
+          var result = statement.executeQuery("select pg_try_advisory_xact_lock(" + guard + ")")) {
+        assertTrue(result.next());
+        assertTrue(
+            result.getBoolean(1),
+            "The server must release the expired transaction's advisory guard");
+      }
+    }
+  }
+
+  @Test
+  void anApplicationPauseAfterAStatementDoesNotStartANewServerDeadline(
+      PostgreSqlTestContainer container) throws Exception {
+    var database = new TenantDatabase(container.databaseName());
+    try (var registry = new TenantDataSourceRegistry(realTemplate(container))) {
+      var provider = registry.dataSourceFor(database);
+      try (var scope = TransactionDeadlineScope.open(database, Duration.ofSeconds(3));
+          var connection = provider.getConnection();
+          var statement = connection.createStatement()) {
+        connection.setAutoCommit(false);
+        statement.execute("select pg_sleep(1)");
+        // This deliberate application pause tests the absolute server deadline, not coordination
+        // between concurrent writers. A fresh post-statement 3-second timeout would still be alive.
+        Thread.sleep(2400);
+        assertThrows(SQLException.class, () -> statement.execute("select 1"));
+      }
+      try (var connection = provider.getConnection();
+          var statement = connection.createStatement();
+          var result = statement.executeQuery("select current_setting('transaction_timeout')")) {
+        assertTrue(result.next());
+        assertEquals("0", result.getString(1), "The ordinary cached pool stays independent");
+      }
+    }
   }
 
   private static TenantDataSourceTemplate realTemplate(PostgreSqlTestContainer container) {

@@ -39,6 +39,7 @@ public interface TenantPoolFactory {
       (database, template) -> {
         HikariConfig config = new HikariConfig();
         config.setJdbcUrl(template.jdbcUrlPrefix() + database.value());
+        template.connectionProperties().forEach(config::addDataSourceProperty);
         config.setUsername(template.username());
         config.setPassword(template.password());
         config.setMinimumIdle(template.minimumIdle());

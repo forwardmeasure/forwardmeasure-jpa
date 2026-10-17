@@ -17,6 +17,7 @@
 package com.forwardmeasure.jpa.datasource;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -37,7 +38,8 @@ public record TenantDataSourceTemplate(
     String password,
     int minimumIdle,
     int maximumPoolSize,
-    Duration idleEvictionTimeout) {
+    Duration idleEvictionTimeout,
+    Map<String, String> connectionProperties) {
 
   /**
    * Matches Pekko's own already-proven per-tenant pool sizing ({@code TenantPersistencePlugins}).
@@ -51,6 +53,8 @@ public record TenantDataSourceTemplate(
     if (jdbcUrlPrefix == null || jdbcUrlPrefix.isBlank()) {
       throw new IllegalArgumentException("jdbcUrlPrefix must not be blank");
     }
+    connectionProperties =
+        Map.copyOf(Objects.requireNonNull(connectionProperties, "connectionProperties"));
     Objects.requireNonNull(username, "username");
     Objects.requireNonNull(password, "password");
     if (minimumIdle < 0) {
@@ -63,6 +67,24 @@ public record TenantDataSourceTemplate(
     if (idleEvictionTimeout.isNegative() || idleEvictionTimeout.isZero()) {
       throw new IllegalArgumentException("idleEvictionTimeout must be positive");
     }
+  }
+
+  /** Retains the existing pool-template API for callers without startup connection properties. */
+  public TenantDataSourceTemplate(
+      String jdbcUrlPrefix,
+      String username,
+      String password,
+      int minimumIdle,
+      int maximumPoolSize,
+      Duration idleEvictionTimeout) {
+    this(
+        jdbcUrlPrefix,
+        username,
+        password,
+        minimumIdle,
+        maximumPoolSize,
+        idleEvictionTimeout,
+        Map.of());
   }
 
   /** Convenience for the default pool sizing/eviction timeout above. */
