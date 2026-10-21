@@ -29,7 +29,11 @@ import java.util.Objects;
 import javax.sql.DataSource;
 
 /**
- * Applies the ForwardMeasure JPA schema to one validated tenant schema.
+ * Applies a product's changelog to one validated tenant schema.
+ *
+ * <p>There is no framework base changelog applied per schema: the tenant's actors live once per
+ * tenant database in the identity schema, applied by {@link TenantIdentityMigrator} before any
+ * product schema.
  *
  * <p>The caller owns scheduling and decides which tenants are migrated. Each invocation acquires
  * and closes its own JDBC connection. Liquibase's lock and history tables are consequently isolated
@@ -39,15 +43,9 @@ public final class TenantSchemaMigrator {
 
   public static final String PLAN_ID = "forwardmeasure-jpa";
 
-  public static final String DEFAULT_CHANGELOG = "db/changelog/forwardmeasure-jpa.xml";
-
   private final DataSource dataSource;
   private final MigrationPlan plan;
   private final LiquibaseMigrationEngine engine;
-
-  public TenantSchemaMigrator(DataSource dataSource) {
-    this(dataSource, DEFAULT_CHANGELOG, Thread.currentThread().getContextClassLoader());
-  }
 
   public TenantSchemaMigrator(DataSource dataSource, String changelog, ClassLoader classLoader) {
     this.dataSource = Objects.requireNonNull(dataSource, "dataSource");

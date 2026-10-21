@@ -23,17 +23,23 @@ import com.forwardmeasure.jpa.contract.entity.ContractOwnedEntity;
 import com.forwardmeasure.jpa.contract.repository.ContractOwnedEntityRepository;
 import com.forwardmeasure.jpa.identity.entity.Actor;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
+import com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.testcontainers.junit.postgresql.WithPostgreSqlContainer;
 import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import jakarta.persistence.OptimisticLockException;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Map;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.hibernate.SessionFactory;
 import org.hibernate.cfg.Configuration;
 import org.junit.jupiter.api.Test;
+import org.postgresql.ds.PGSimpleDataSource;
 
 @WithPostgreSqlContainer(databaseName = "jpa_persistence_contract")
 class JpaPersistenceContractTest {
@@ -42,9 +48,10 @@ class JpaPersistenceContractTest {
   void mappingMatchesMigrationsAndEnforcesOptimisticLocking(PostgreSqlTestContainer database) {
     TenantSchema schema = schema();
     database.createSchema(schema.value());
-    migrate(database, schema);
+    TenantDatabase tenant = new TenantDatabase(database.hostJdbcUrl(), database.dataSource());
+    migrate(tenant, schema);
 
-    try (SessionFactory sessions = sessions(database, schema)) {
+    try (SessionFactory sessions = sessions(database, tenant, schema)) {
       ContractResult created;
       try (var session = sessions.openSession()) {
         var transaction = session.beginTransaction();
@@ -66,17 +73,24 @@ class JpaPersistenceContractTest {
     }
   }
 
+  /**
+   * Tenants are isolated by database: each tenant database has its own identity schema and its own
+   * product schemas, so neither actors nor owned data cross between tenants. (Within one tenant
+   * database, actors are deliberately shared by every product schema.)
+   */
   @Test
-  void tenantSchemasHaveIndependentIdentityAndOwnedData(PostgreSqlTestContainer database) {
-    TenantSchema first = schema();
-    TenantSchema second = schema();
-    database.createSchema(first.value());
-    database.createSchema(second.value());
-    migrate(database, first);
-    migrate(database, second);
+  void tenantDatabasesHaveIndependentIdentityAndOwnedData(PostgreSqlTestContainer database)
+      throws SQLException {
+    TenantDatabase firstTenant = createDatabase(database);
+    TenantDatabase secondTenant = createDatabase(database);
+    TenantSchema schema = schema();
+    for (TenantDatabase tenant : new TenantDatabase[] {firstTenant, secondTenant}) {
+      createSchema(tenant, schema);
+      migrate(tenant, schema);
+    }
 
-    try (SessionFactory firstSessions = sessions(database, first);
-        SessionFactory secondSessions = sessions(database, second)) {
+    try (SessionFactory firstSessions = sessions(database, firstTenant, schema);
+        SessionFactory secondSessions = sessions(database, secondTenant, schema)) {
       persistContract(firstSessions);
 
       assertEquals(1L, count(firstSessions, Actor.class));
@@ -112,21 +126,23 @@ class JpaPersistenceContractTest {
     return JpaPersistenceContract.verify(actors, owned);
   }
 
-  private void migrate(PostgreSqlTestContainer database, TenantSchema schema) {
+  private void migrate(TenantDatabase tenant, TenantSchema schema) {
+    new TenantIdentityMigrator(tenant.dataSource(), getClass().getClassLoader()).migrate();
     new TenantSchemaMigrator(
-            database.dataSource(),
+            tenant.dataSource(),
             "db/changelog/forwardmeasure-jpa-contract-tests.xml",
             getClass().getClassLoader())
         .migrate(schema);
   }
 
-  private SessionFactory sessions(PostgreSqlTestContainer database, TenantSchema schema) {
+  private SessionFactory sessions(
+      PostgreSqlTestContainer database, TenantDatabase tenant, TenantSchema schema) {
     Configuration configuration = new Configuration();
     configuration.addAnnotatedClass(Actor.class);
     configuration.addAnnotatedClass(ContractOwnedEntity.class);
     Map<String, String> properties =
         Map.of(
-            "jakarta.persistence.jdbc.url", database.hostJdbcUrl(),
+            "jakarta.persistence.jdbc.url", tenant.jdbcUrl(),
             "jakarta.persistence.jdbc.user", database.username(),
             "jakarta.persistence.jdbc.password", database.password(),
             "jakarta.persistence.jdbc.driver", "org.postgresql.Driver",
@@ -140,4 +156,28 @@ class JpaPersistenceContractTest {
   private TenantSchema schema() {
     return TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
   }
+
+  /** A fresh database standing in for one tenant's own database, on the shared container. */
+  private TenantDatabase createDatabase(PostgreSqlTestContainer database) throws SQLException {
+    String name = "tenant_" + UUID.randomUUID().toString().replace("-", "");
+    try (Connection connection = database.dataSource().getConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute("create database " + name);
+    }
+    String url = database.hostJdbcUrl().replace("/" + database.databaseName(), "/" + name);
+    PGSimpleDataSource dataSource = new PGSimpleDataSource();
+    dataSource.setUrl(url);
+    dataSource.setUser(database.username());
+    dataSource.setPassword(database.password());
+    return new TenantDatabase(url, dataSource);
+  }
+
+  private static void createSchema(TenantDatabase tenant, TenantSchema schema) throws SQLException {
+    try (Connection connection = tenant.dataSource().getConnection();
+        Statement statement = connection.createStatement()) {
+      statement.execute("create schema \"" + schema.value() + "\"");
+    }
+  }
+
+  private record TenantDatabase(String jdbcUrl, DataSource dataSource) {}
 }

@@ -221,6 +221,10 @@ public abstract class AbstractBaseRepository<
     entityManager().flush();
   }
 
+  public void clear() {
+    entityManager().clear();
+  }
+
   public void detach(T entity) {
     entityManager().detach(Objects.requireNonNull(entity, "entity"));
   }

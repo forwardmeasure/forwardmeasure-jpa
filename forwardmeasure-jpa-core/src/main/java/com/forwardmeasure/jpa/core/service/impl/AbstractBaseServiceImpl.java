@@ -147,4 +147,9 @@ public class AbstractBaseServiceImpl<
   public void detach(T entity) {
     repository.detach(entity);
   }
+
+  @Override
+  public void clear() {
+    repository.clear();
+  }
 }

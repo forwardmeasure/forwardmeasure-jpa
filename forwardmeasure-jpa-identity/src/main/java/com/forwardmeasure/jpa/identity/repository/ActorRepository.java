@@ -44,13 +44,25 @@ public class ActorRepository extends AbstractBaseRepository<Actor, Long> {
   }
 
   public Optional<Actor> findByIdentity(String identityProvider, String subjectIdentifier) {
-    Objects.requireNonNull(subjectIdentifier, "subjectIdentifier");
     CriteriaBuilder builder = criteriaBuilder();
     CriteriaQuery<Actor> query = builder.createQuery(Actor.class);
     Root<Actor> actor = query.from(Actor.class);
     query
         .select(actor)
         .where(identityPredicate(builder, actor, identityProvider, subjectIdentifier));
+    return entityManager().createQuery(query).setMaxResults(1).getResultList().stream().findFirst();
+  }
+
+  /** The actor with this identity, only if it is provisioned and not disabled. */
+  public Optional<Actor> findEnabledByIdentity(String identityProvider, String subjectIdentifier) {
+    CriteriaBuilder builder = criteriaBuilder();
+    CriteriaQuery<Actor> query = builder.createQuery(Actor.class);
+    Root<Actor> actor = query.from(Actor.class);
+    query
+        .select(actor)
+        .where(
+            identityPredicate(builder, actor, identityProvider, subjectIdentifier),
+            builder.isNull(actor.get(Actor_.disabledAt)));
     return entityManager().createQuery(query).setMaxResults(1).getResultList().stream().findFirst();
   }
 
@@ -63,7 +75,6 @@ public class ActorRepository extends AbstractBaseRepository<Actor, Long> {
   }
 
   public boolean existsByIdentity(String identityProvider, String subjectIdentifier) {
-    Objects.requireNonNull(subjectIdentifier, "subjectIdentifier");
     CriteriaBuilder builder = criteriaBuilder();
     CriteriaQuery<Long> query = builder.createQuery(Long.class);
     Root<Actor> actor = query.from(Actor.class);
@@ -87,11 +98,10 @@ public class ActorRepository extends AbstractBaseRepository<Actor, Long> {
       Root<Actor> actor,
       String identityProvider,
       String subjectIdentifier) {
-    Predicate provider =
-        identityProvider == null
-            ? builder.isNull(actor.get(Actor_.identityProvider))
-            : builder.equal(actor.get(Actor_.identityProvider), identityProvider);
+    Objects.requireNonNull(identityProvider, "identityProvider");
+    Objects.requireNonNull(subjectIdentifier, "subjectIdentifier");
     return builder.and(
-        provider, builder.equal(actor.get(Actor_.subjectIdentifier), subjectIdentifier));
+        builder.equal(actor.get(Actor_.identityProvider), identityProvider),
+        builder.equal(actor.get(Actor_.subjectIdentifier), subjectIdentifier));
   }
 }

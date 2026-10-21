@@ -48,6 +48,11 @@ public class ActorServiceImpl extends AbstractBaseServiceImpl<Actor, Long, Actor
   }
 
   @Override
+  public Optional<Actor> findEnabledByIdentity(String identityProvider, String subjectIdentifier) {
+    return repository().findEnabledByIdentity(identityProvider, subjectIdentifier);
+  }
+
+  @Override
   public List<Actor> findByEmail(String email) {
     return repository().findByEmail(email);
   }

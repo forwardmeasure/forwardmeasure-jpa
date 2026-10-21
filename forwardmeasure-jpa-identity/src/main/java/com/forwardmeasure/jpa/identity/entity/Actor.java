@@ -17,6 +17,7 @@
 package com.forwardmeasure.jpa.identity.entity;
 
 import com.forwardmeasure.jpa.core.entity.AbstractBaseEntity;
+import com.forwardmeasure.jpa.tenancy.IdentitySchema;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -29,6 +30,7 @@ import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotNull;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -38,17 +40,24 @@ import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 /**
- * Root identity record. An actor is intentionally not an {@code AuditedEntity} and is never owned
- * by another actor.
+ * Root identity record: one person or service account with access to the tenant, held once per
+ * tenant database in the {@link IdentitySchema} and referenced by every product. An actor is
+ * intentionally not an {@code AuditedEntity} and is never owned by another actor. It is provisioned
+ * when tenant access is granted and disabled, never deleted, when that access is removed.
  */
 @Entity
 @Table(
+    schema = IdentitySchema.NAME,
     name = "actor",
     uniqueConstraints =
         @UniqueConstraint(
             name = "uk_actor_identity_provider_subject_identifier",
             columnNames = {"identity_provider", "subject_identifier"}))
-@SequenceGenerator(name = "actor_id_generator", sequenceName = "actor_id_seq", allocationSize = 1)
+@SequenceGenerator(
+    name = "actor_id_generator",
+    schema = IdentitySchema.NAME,
+    sequenceName = "actor_id_seq",
+    allocationSize = 1)
 @Getter
 @Setter
 @SuperBuilder
@@ -79,8 +88,18 @@ public class Actor extends AbstractBaseEntity<Long> {
   @Column(name = "email")
   private String email;
 
-  @Column(name = "identity_provider")
+  @NotNull
+  @Column(name = "identity_provider", nullable = false)
   private String identityProvider;
+
+  /** Set when the actor's tenant access is removed; an actor is disabled, never deleted. */
+  @Column(name = "disabled_at")
+  private OffsetDateTime disabledAt;
+
+  /** Whether this actor may act: provisioned and not disabled. */
+  public boolean isEnabled() {
+    return disabledAt == null;
+  }
 
   @PrePersist
   protected void initializeIdentity() {

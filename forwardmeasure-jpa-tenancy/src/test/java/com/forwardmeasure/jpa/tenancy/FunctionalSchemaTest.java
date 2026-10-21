@@ -28,6 +28,7 @@ class FunctionalSchemaTest {
     assertEquals("entity_intelligence", FunctionalSchema.ENTITY_INTELLIGENCE.schemaName());
     assertEquals("decision_intelligence", FunctionalSchema.DECISION_INTELLIGENCE.schemaName());
     assertEquals("agent_os", FunctionalSchema.AGENT_OS.schemaName());
+    assertEquals("agent_ensemble", FunctionalSchema.AGENT_ENSEMBLE.schemaName());
     assertEquals("data_streaming", FunctionalSchema.DATA_STREAMING.schemaName());
   }
 

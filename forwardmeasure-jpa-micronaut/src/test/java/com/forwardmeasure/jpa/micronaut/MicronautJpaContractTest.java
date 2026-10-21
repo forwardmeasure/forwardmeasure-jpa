@@ -114,6 +114,9 @@ class MicronautJpaContractTest implements TestPropertyProvider {
       var registry = new com.forwardmeasure.jpa.liquibase.TenantRegistry(DATABASE.dataSource());
       registry.migrate();
       registry.register(TENANT_DID, "micronauttest", TENANT_DATABASE);
+      new com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator(
+              DATABASE.dataSource(), getClass().getClassLoader())
+          .migrate();
       new LiquibaseMigrationEngine(getClass().getClassLoader())
           .migrate(
               new MigrationRequest(

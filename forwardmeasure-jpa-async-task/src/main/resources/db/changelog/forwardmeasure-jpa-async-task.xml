@@ -73,7 +73,9 @@
             <column name="actor_id" type="BIGINT">
                 <constraints
                     foreignKeyName="fk_async_task_actor"
-                    references="actor(id)" />
+                    referencedTableSchemaName="identity"
+                    referencedTableName="actor"
+                    referencedColumnNames="id" />
             </column>
             <column name="result_payload" type="JSONB" />
             <column name="result_uri" type="TEXT" />

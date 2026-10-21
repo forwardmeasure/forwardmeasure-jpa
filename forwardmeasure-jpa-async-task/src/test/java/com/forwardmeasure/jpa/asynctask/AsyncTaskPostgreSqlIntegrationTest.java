@@ -32,6 +32,7 @@ import com.forwardmeasure.jpa.asynctask.support.TestAsyncTaskType;
 import com.forwardmeasure.jpa.identity.entity.Actor;
 import com.forwardmeasure.jpa.identity.entity.IdentityType;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
+import com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
@@ -174,6 +175,7 @@ class AsyncTaskPostgreSqlIntegrationTest {
   private TenantSchema prepare(PostgreSqlTestContainer database) {
     TenantSchema tenant = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
     database.createSchema(tenant.value());
+    new TenantIdentityMigrator(database.dataSource(), getClass().getClassLoader()).migrate();
     TenantSchemaMigrator migrator =
         new TenantSchemaMigrator(
             database.dataSource(),

@@ -24,9 +24,9 @@
     <!--
     Root changelog for the platform control-plane database (see TenantRegistry) - a small,
     non-tenant database, separate from every tenant's own database, holding the authoritative
-    tenant -> database mapping. Deliberately its own root changelog, not included into
-    forwardmeasure-jpa.xml (that one is applied per tenant schema; this one is applied once, to the
-    platform database's own public schema).
+    tenant -> database mapping. Deliberately its own root changelog: it is applied once, to the
+    platform database's own public schema, never into a tenant database (whose identity schema is
+    forwardmeasure-jpa-identity.xml).
     -->
     <changeSet id="platform-registry-001-tenant-registry" author="forwardmeasure">
         <comment>

@@ -51,6 +51,10 @@
     </properties>
 
     <modules>
+        <module>parents/micronaut</module>
+        <module>parents/spring</module>
+        <module>parents/quarkus</module>
+        <module>parents/neutral</module>
         <module>forwardmeasure-jpa-bom</module>
         <module>forwardmeasure-jpa-core</module>
         <module>forwardmeasure-jpa-identity</module>
@@ -72,62 +76,62 @@
 
             <!-- Reactor modules: leaf POMs never select inter-module versions. -->
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-identity</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-async-task</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-locking</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-tenancy</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-datasource</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-liquibase</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-testcontainers</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-contract-tests</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-quarkus</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-spring</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-micronaut</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -149,7 +153,12 @@
                         <proc>full</proc>
                         <parameters>true</parameters>
                         <showWarnings>true</showWarnings>
-                        <annotationProcessorPaths>
+                        <!-- Processor paths without a <version> (hibernate-processor) follow the module's managed
+                             version, so each framework's modules generate with that framework's Hibernate. -->
+                        <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+                        <!-- combine.self=override: replace the platform parent's list instead of merging it entry by entry,
+                             which would hand the versionless hibernate-processor the version of the parent's entry at the same position. -->
+                        <annotationProcessorPaths combine.self="override">
                             <path>
                                 <groupId>org.projectlombok</groupId>
                                 <artifactId>lombok</artifactId>
@@ -158,7 +167,6 @@
                             <path>
                                 <groupId>org.hibernate.orm</groupId>
                                 <artifactId>hibernate-processor</artifactId>
-                                <version>${hibernate.version}</version>
                             </path>
                             <path>
                                 <groupId>org.mapstruct</groupId>

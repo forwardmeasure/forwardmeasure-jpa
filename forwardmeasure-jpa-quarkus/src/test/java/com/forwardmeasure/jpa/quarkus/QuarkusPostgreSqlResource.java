@@ -59,6 +59,9 @@ public final class QuarkusPostgreSqlResource implements QuarkusTestResourceLifec
     var registry = new com.forwardmeasure.jpa.liquibase.TenantRegistry(database.dataSource());
     registry.migrate();
     registry.register(TENANT_DID, "contracttest", TENANT_DATABASE);
+    new com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator(
+            database.dataSource(), getClass().getClassLoader())
+        .migrate();
     new LiquibaseMigrationEngine(getClass().getClassLoader())
         .migrate(
             new MigrationRequest(

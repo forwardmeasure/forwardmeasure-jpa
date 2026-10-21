@@ -88,6 +88,9 @@ class SpringJpaContractTest {
     var registry = new com.forwardmeasure.jpa.liquibase.TenantRegistry(DATABASE.dataSource());
     registry.migrate();
     registry.register(TENANT_DID, "contracttest", TENANT_DATABASE);
+    new com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator(
+            DATABASE.dataSource(), SpringJpaContractTest.class.getClassLoader())
+        .migrate();
     new LiquibaseMigrationEngine(SpringJpaContractTest.class.getClassLoader())
         .migrate(
             new MigrationRequest(

@@ -21,8 +21,9 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.forwardmeasure.jpa</groupId>
-        <artifactId>forwardmeasure-jpa-parent</artifactId>
+        <artifactId>forwardmeasure-jpa-neutral-parent</artifactId>
         <version>${revision}</version>
+        <relativePath>../parents/neutral/pom.xml</relativePath>
     </parent>
     <artifactId>forwardmeasure-jpa-identity</artifactId>
     <name>ForwardMeasure JPA Identity</name>
@@ -35,6 +36,10 @@
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>forwardmeasure-jpa-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>forwardmeasure-jpa-tenancy</artifactId>
         </dependency>
         <dependency>
             <groupId>jakarta.persistence</groupId>

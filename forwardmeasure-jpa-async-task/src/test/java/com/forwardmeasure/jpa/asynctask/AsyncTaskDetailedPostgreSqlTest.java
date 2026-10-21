@@ -44,6 +44,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 @WithPostgreSqlContainer(databaseName = "jpa_async_task_detailed_contract")
@@ -195,24 +196,24 @@ class AsyncTaskDetailedPostgreSqlTest {
   void transactionRollbackRemovesTaskAndActorWrites(PostgreSqlTestContainer database) {
     try (var fixture = AsyncTaskJpaFixture.create(database)) {
       UUID resourceId = UUID.randomUUID();
+      // identity.actor is shared by every tenant schema in the database, so the rollback is
+      // checked against the actor this transaction wrote, not a table-wide count.
+      AtomicReference<String> rolledBackSubject = new AtomicReference<>();
       assertThrows(
           DeliberateRollback.class,
           () ->
               fixture.transaction(
                   context -> {
-                    context
-                        .service()
-                        .createTask(
-                            TestAsyncTaskType.EXTRACTION,
-                            resourceId,
-                            fixture.actor(context.actors()));
+                    var actor = fixture.actor(context.actors());
+                    rolledBackSubject.set(actor.getSubjectIdentifier());
+                    context.service().createTask(TestAsyncTaskType.EXTRACTION, resourceId, actor);
                     throw new DeliberateRollback();
                   }));
 
       fixture.transaction(
           context -> {
             assertEquals(0L, context.service().countByResourceId(resourceId, null));
-            assertEquals(0L, context.actors().count());
+            assertTrue(context.actors().findByIdentity("test", rolledBackSubject.get()).isEmpty());
             return null;
           });
     }

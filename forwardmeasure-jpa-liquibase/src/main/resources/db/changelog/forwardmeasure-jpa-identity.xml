@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Licensed to the Apache Software Foundation (ASF) under one or more
+    contributor license agreements. See the NOTICE file distributed with
+    this work for additional information regarding copyright ownership.
+    The ASF licenses this file to You under the Apache License, Version 2.0
+    (the "License"); you may not use this file except in compliance with
+    the License. You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<!--
+    The tenant's identity schema: one actor per person or service account with access to the
+    tenant, shared by every product in the tenant database. Applied into the "identity" schema
+    (IdentitySchema.NAME) by TenantIdentityMigrator before any product schema. Products reference
+    identity.actor by foreign key and never create an actor table of their own.
+
+    An actor is provisioned deliberately when tenant access is granted, and disabled (disabled_at
+    set), never deleted, when that access is removed - so every record that references it keeps a
+    valid owner. identity_provider is required: an actor is identified by (provider, subject).
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    logicalFilePath="db/changelog/forwardmeasure-jpa-identity.xml"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="forwardmeasure-jpa-identity-001-actor" author="forwardmeasure">
+        <comment>Create the tenant's actor table.</comment>
+
+        <createSequence sequenceName="actor_id_seq" startValue="1" incrementBy="1" cacheSize="1" />
+
+        <createTable tableName="actor">
+            <column name="id" type="BIGINT" defaultValueSequenceNext="actor_id_seq">
+                <constraints primaryKey="true" primaryKeyName="pk_actor" nullable="false" />
+            </column>
+            <column name="version" type="INTEGER" defaultValueNumeric="0">
+                <constraints nullable="false" />
+            </column>
+            <column name="uuid" type="UUID" defaultValueComputed="gen_random_uuid()">
+                <constraints nullable="false" unique="true" uniqueConstraintName="uk_actor_uuid" />
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false" />
+            </column>
+            <column name="identity_provider" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="subject_identifier" type="VARCHAR(255)">
+                <constraints nullable="false" />
+            </column>
+            <column name="identity_type" type="VARCHAR(16)">
+                <constraints nullable="false" />
+            </column>
+            <column name="email" type="VARCHAR(255)" />
+            <column name="disabled_at" type="TIMESTAMP WITH TIME ZONE" />
+        </createTable>
+
+        <addUniqueConstraint
+            tableName="actor"
+            columnNames="identity_provider,subject_identifier"
+            constraintName="uk_actor_identity_provider_subject_identifier" />
+
+        <!-- Part of the create, not a patch: Liquibase has no OSS check-constraint or
+             sequence-ownership tag, so both are declared in SQL within this same changeset. -->
+        <sql dbms="postgresql">
+            ALTER SEQUENCE actor_id_seq OWNED BY actor.id;
+
+            ALTER TABLE actor
+            ADD CONSTRAINT chk_actor_identity_type
+            CHECK (identity_type IN ('HUMAN', 'SERVICE'));
+        </sql>
+
+        <rollback>
+            <dropTable tableName="actor" />
+            <dropSequence sequenceName="actor_id_seq" />
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

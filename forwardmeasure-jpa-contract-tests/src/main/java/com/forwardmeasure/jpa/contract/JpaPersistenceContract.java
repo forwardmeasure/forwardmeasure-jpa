@@ -30,6 +30,7 @@ import com.forwardmeasure.jpa.identity.entity.OwnedEntity_;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Shared repository assertions executed by every supported framework. */
 public final class JpaPersistenceContract {
@@ -40,11 +41,16 @@ public final class JpaPersistenceContract {
     Objects.requireNonNull(actors, "actors");
     Objects.requireNonNull(owned, "owned");
 
+    // identity.actor is shared by every schema in a tenant database: each run uses its own
+    // identity so repeated or concurrent contract runs never collide.
+    String run = UUID.randomUUID().toString();
+    String contractSubject = "contract-user-" + run;
+    String contractEmail = "contract-" + run + "@example.test";
     Actor actor = new Actor();
-    actor.setSubjectIdentifier("contract-user");
+    actor.setSubjectIdentifier(contractSubject);
     actor.setIdentityProvider("contract-idp");
     actor.setType(IdentityType.HUMAN);
-    actor.setEmail("contract@example.test");
+    actor.setEmail(contractEmail);
     actors.persist(actor);
 
     ContractOwnedEntity entity = new ContractOwnedEntity();
@@ -67,35 +73,39 @@ public final class JpaPersistenceContract {
         owned.existsByUuidAndOwnerId(entity.getUuid(), actor.getId()),
         "Owner-scoped UUID lookup failed");
     require(
-        owned.existsByIdAndOwnerSubjectIdentifier(entity.getId(), "contract-user"),
+        owned.existsByIdAndOwnerSubjectIdentifier(entity.getId(), contractSubject),
         "Owner-subject id lookup failed");
     require(
-        owned.existsByUuidAndOwnerSubjectIdentifier(entity.getUuid(), "contract-user"),
+        owned.existsByUuidAndOwnerSubjectIdentifier(entity.getUuid(), contractSubject),
         "Owner-subject UUID lookup failed");
     require(
         owned
             .findOwnerSubjectIdentifierById(entity.getId())
-            .filter("contract-user"::equals)
+            .filter(contractSubject::equals)
             .isPresent(),
         "Owner subject projection by id failed");
     require(
         owned
             .findOwnerSubjectIdentifierByUuid(entity.getUuid())
-            .filter("contract-user"::equals)
+            .filter(contractSubject::equals)
             .isPresent(),
         "Owner subject projection by UUID failed");
     require(owned.countByOwnerId(actor.getId()) == 1L, "Owner count failed");
     require(
-        owned.findByOwnerSubjectIdentifier("contract-user").size() == 1,
+        owned.findByOwnerSubjectIdentifier(contractSubject).size() == 1,
         "Owner-subject lookup failed");
     require(
-        actors.findByIdentity("contract-idp", "contract-user").isPresent(),
+        actors.findByIdentity("contract-idp", contractSubject).isPresent(),
         "Actor identity lookup failed");
     require(
-        actors.existsByIdentity("contract-idp", "contract-user"),
+        actors.existsByIdentity("contract-idp", contractSubject),
         "Actor identity existence lookup failed");
-    require(actors.findByEmail("contract@example.test").size() == 1, "Actor email lookup failed");
-    require(actors.findByType(IdentityType.HUMAN).size() == 1, "Actor type lookup failed");
+    require(actors.findByEmail(contractEmail).size() == 1, "Actor email lookup failed");
+    List<Actor> humans = actors.findByType(IdentityType.HUMAN);
+    require(
+        humans.stream().anyMatch(found -> found.getId().equals(actor.getId()))
+            && humans.stream().allMatch(found -> found.getType() == IdentityType.HUMAN),
+        "Actor type lookup failed");
 
     var page =
         owned.page(

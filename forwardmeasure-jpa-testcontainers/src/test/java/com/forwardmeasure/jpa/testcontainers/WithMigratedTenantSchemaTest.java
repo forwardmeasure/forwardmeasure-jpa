@@ -17,9 +17,11 @@
 package com.forwardmeasure.jpa.testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.forwardmeasure.jpa.tenancy.IdentitySchema;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
 import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 import org.junit.jupiter.api.MethodOrderer;
@@ -41,12 +43,17 @@ class WithMigratedTenantSchemaTest {
 
   @Test
   @Order(1)
-  void appliesTheFrameworkBaseAndEveryListedChangelogInOrder(
+  void appliesTheIdentitySchemaThenEveryListedChangelogInOrder(
       TenantSchema schema, PostgreSqlTestContainer database) throws Exception {
-    assertTrue(tableExists(database, schema, "actor"), "expected framework base table 'actor'");
     assertTrue(
-        tableExists(database, schema, "system_lock"),
-        "expected the extra changelog's table 'system_lock'");
+        tableExists(database, IdentitySchema.NAME, "actor"),
+        "expected the database's shared identity.actor");
+    assertFalse(
+        tableExists(database, schema.value(), "actor"),
+        "a tenant schema must not carry its own actor table");
+    assertTrue(
+        tableExists(database, schema.value(), "system_lock"),
+        "expected the listed changelog's table 'system_lock'");
 
     firstSchemaValue = schema.value();
     firstContainer = database;
@@ -63,18 +70,18 @@ class WithMigratedTenantSchemaTest {
         firstSchemaValue, schema.value(), "expected the same schema reused across test methods");
     assertSame(firstContainer, database, "expected one container reused for the whole test class");
 
-    assertTrue(tableExists(database, schema, "actor"));
-    assertTrue(tableExists(database, schema, "system_lock"));
+    assertTrue(tableExists(database, IdentitySchema.NAME, "actor"));
+    assertTrue(tableExists(database, schema.value(), "system_lock"));
   }
 
-  private boolean tableExists(PostgreSqlTestContainer database, TenantSchema schema, String table)
+  private boolean tableExists(PostgreSqlTestContainer database, String schema, String table)
       throws Exception {
     try (var connection = database.dataSource().getConnection();
         var statement =
             connection.prepareStatement(
                 "select count(*) from information_schema.tables"
                     + " where table_schema = ? and table_name = ?")) {
-      statement.setString(1, schema.value());
+      statement.setString(1, schema);
       statement.setString(2, table);
       try (var result = statement.executeQuery()) {
         result.next();

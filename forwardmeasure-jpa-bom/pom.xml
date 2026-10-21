@@ -31,62 +31,62 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-identity</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-async-task</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-locking</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-tenancy</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-datasource</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-liquibase</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-testcontainers</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-contract-tests</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-quarkus</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-spring</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>${project.groupId}</groupId>
+                <groupId>com.forwardmeasure.jpa</groupId>
                 <artifactId>forwardmeasure-jpa-micronaut</artifactId>
                 <version>${project.version}</version>
             </dependency>

@@ -21,7 +21,6 @@
     logicalFilePath="db/changelog/forwardmeasure-jpa-contract-tests.xml"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog https://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <include file="db/changelog/forwardmeasure-jpa.xml" />
     <include file="db/changelog/forwardmeasure-jpa-async-task.xml" />
     <include file="db/changelog/forwardmeasure-jpa-locking.xml" />
 
@@ -71,17 +70,12 @@
         <addForeignKeyConstraint
             baseTableName="jpa_contract_owned_entity"
             baseColumnNames="owner_id"
+            referencedTableSchemaName="identity"
             referencedTableName="actor"
             referencedColumnNames="id"
             constraintName="fk_jpa_contract_owned_entity_owner"
             onDelete="RESTRICT" />
-    </changeSet>
-
-    <changeSet
-        id="contract-002-sequence-ownership"
-        author="forwardmeasure"
-        dbms="postgresql">
-        <sql>
+        <sql dbms="postgresql">
             ALTER SEQUENCE jpa_contract_owned_entity_id_seq
             OWNED BY jpa_contract_owned_entity.id;
         </sql>
