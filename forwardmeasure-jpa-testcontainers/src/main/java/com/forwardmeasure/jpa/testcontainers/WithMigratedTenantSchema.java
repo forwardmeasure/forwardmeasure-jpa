@@ -26,12 +26,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Hands every {@code @Test} method a real, already-migrated {@link
- * com.forwardmeasure.jpa.tenancy.TenantSchema} - a fresh Postgres schema, with {@link
- * TenantSchemaMigrator#DEFAULT_CHANGELOG} (the framework base) plus, in order, every changelog
- * listed in {@link #changelogs()} already applied. One real {@code PostgreSQLContainer} is shared
- * for the whole test class (via the meta-annotated {@link WithPostgreSqlContainer}); the schema
- * itself - and therefore the migration - is fresh per test method, matching how every consumer of
- * this annotation previously built its own throwaway schema by hand once per test.
+ * com.forwardmeasure.jpa.tenancy.TenantSchema} - a fresh Postgres schema, with every changelog
+ * listed in {@link #changelogs()} already applied in order, after the database's shared identity
+ * schema ({@link com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator}). One real {@code
+ * PostgreSQLContainer} is shared for the whole test class (via the meta-annotated {@link
+ * WithPostgreSqlContainer}); the schema itself - and therefore the migration - is fresh per test
+ * method, matching how every consumer of this annotation previously built its own throwaway schema
+ * by hand once per test.
  *
  * <p>Request {@link com.forwardmeasure.jpa.tenancy.TenantSchema} and/or {@link
  * com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer} as {@code @Test} method
@@ -47,8 +48,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 public @interface WithMigratedTenantSchema {
 
   /**
-   * Extra changelogs applied, in order, after the framework base. Classpath-relative paths, passed
-   * straight through to {@link TenantSchemaMigrator}'s own changelog-path constructor.
+   * Changelogs applied, in order, into the tenant schema after the identity schema.
+   * Classpath-relative paths, passed straight through to {@link TenantSchemaMigrator}'s own
+   * changelog-path constructor.
    */
   String[] changelogs() default {};
 }

@@ -34,6 +34,13 @@ public enum FunctionalSchema {
   AGENT_OS("agent_os"),
 
   /**
+   * Shared by every agent in forwardmeasure-agent-ensemble (Indexical first; Selfsame and Custodex
+   * later), each owning its own table-name prefix within it - one schema per product, not per
+   * agent.
+   */
+  AGENT_ENSEMBLE("agent_ensemble"),
+
+  /**
    * Reserved, not yet used by any real migrator - forwardmeasure-data-streaming has zero owned
    * persistence today (confirmed: its only JDBC-adjacent code is a generic source/sink connector
    * for arbitrary external customer databases, not its own schema). Kept here so the

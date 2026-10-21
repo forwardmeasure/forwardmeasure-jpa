@@ -22,6 +22,7 @@ import com.forwardmeasure.jpa.asynctask.service.impl.AsyncTaskServiceImpl;
 import com.forwardmeasure.jpa.identity.entity.Actor;
 import com.forwardmeasure.jpa.identity.entity.IdentityType;
 import com.forwardmeasure.jpa.identity.repository.ActorRepository;
+import com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
@@ -45,6 +46,8 @@ public final class AsyncTaskJpaFixture implements AutoCloseable {
     AsyncTaskTypeConverter.register(TestAsyncTaskType.values());
     TenantSchema tenant = TenantSchema.forTenant(new TenantId(UUID.randomUUID()));
     database.createSchema(tenant.value());
+    new TenantIdentityMigrator(database.dataSource(), AsyncTaskJpaFixture.class.getClassLoader())
+        .migrate();
     TenantSchemaMigrator migrator =
         new TenantSchemaMigrator(
             database.dataSource(),

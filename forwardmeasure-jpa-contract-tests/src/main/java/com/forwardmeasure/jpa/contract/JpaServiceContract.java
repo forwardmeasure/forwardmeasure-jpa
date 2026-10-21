@@ -26,6 +26,7 @@ import com.forwardmeasure.jpa.identity.service.ActorService;
 import com.forwardmeasure.jpa.identity.service.OwnedEntityService;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Shared service assertions executed by every supported framework. */
 public final class JpaServiceContract {
@@ -37,11 +38,16 @@ public final class JpaServiceContract {
     Objects.requireNonNull(actors, "actors");
     Objects.requireNonNull(owned, "owned");
 
+    // identity.actor is shared by every schema in a tenant database: each run uses its own
+    // identity so repeated or concurrent contract runs never collide.
+    String run = UUID.randomUUID().toString();
+    String serviceSubject = "service-contract-user-" + run;
+    String serviceEmail = "service-contract-" + run + "@example.test";
     Actor actor = new Actor();
-    actor.setSubjectIdentifier("service-contract-user");
+    actor.setSubjectIdentifier(serviceSubject);
     actor.setIdentityProvider("service-contract-idp");
     actor.setType(IdentityType.SERVICE);
-    actor.setEmail("service-contract@example.test");
+    actor.setEmail(serviceEmail);
     actors.persistAndFlush(actor);
 
     ContractOwnedEntity entity = new ContractOwnedEntity();
@@ -54,16 +60,17 @@ public final class JpaServiceContract {
     require(actors.findByIdOptional(actor.getId()).isPresent(), "Actor service id lookup failed");
     require(actors.findByUuid(actor.getUuid()).isPresent(), "Actor service UUID lookup failed");
     require(
-        actors.findByIdentity("service-contract-idp", "service-contract-user").isPresent(),
+        actors.findByIdentity("service-contract-idp", serviceSubject).isPresent(),
         "Actor service identity lookup failed");
     require(
-        actors.existsByIdentity("service-contract-idp", "service-contract-user"),
+        actors.existsByIdentity("service-contract-idp", serviceSubject),
         "Actor service identity existence failed");
+    require(actors.findByEmail(serviceEmail).size() == 1, "Actor service email lookup failed");
+    List<Actor> services = actors.findByType(IdentityType.SERVICE);
     require(
-        actors.findByEmail("service-contract@example.test").size() == 1,
-        "Actor service email lookup failed");
-    require(
-        actors.findByType(IdentityType.SERVICE).size() == 1, "Actor service type lookup failed");
+        services.stream().anyMatch(found -> found.getId().equals(actor.getId()))
+            && services.stream().allMatch(found -> found.getType() == IdentityType.SERVICE),
+        "Actor service type lookup failed");
     require(owned.findByIdOptional(entity.getId()).isPresent(), "Owned service id lookup failed");
     require(owned.findByUuid(entity.getUuid()).isPresent(), "Owned service UUID lookup failed");
     require(
@@ -73,7 +80,7 @@ public final class JpaServiceContract {
     require(owned.findByOwnerId(actor.getId()).size() == 1, "Owned service owner lookup failed");
     require(owned.countByOwnerId(actor.getId()) == 1, "Owned service owner count failed");
     require(
-        owned.existsByUuidAndOwnerSubjectIdentifier(entity.getUuid(), "service-contract-user"),
+        owned.existsByUuidAndOwnerSubjectIdentifier(entity.getUuid(), serviceSubject),
         "Owned service owner-subject lookup failed");
 
     var page =

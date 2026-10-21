@@ -21,23 +21,12 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>com.forwardmeasure.jpa</groupId>
-        <artifactId>forwardmeasure-jpa-parent</artifactId>
+        <artifactId>forwardmeasure-jpa-neutral-parent</artifactId>
         <version>${revision}</version>
+        <relativePath>../parents/neutral/pom.xml</relativePath>
     </parent>
     <artifactId>forwardmeasure-jpa-contract-tests</artifactId>
     <name>ForwardMeasure JPA Contract Tests</name>
-
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.hibernate.orm</groupId>
-                <artifactId>hibernate-platform</artifactId>
-                <version>${hibernate.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
 
     <dependencies>
         <dependency>

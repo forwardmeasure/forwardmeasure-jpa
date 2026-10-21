@@ -68,4 +68,12 @@ public interface AbstractBaseService<T extends AbstractBaseEntity<I>, I extends 
   void flush();
 
   void detach(T entity);
+
+  /**
+   * Detaches every managed entity, emptying the persistence context. Use between steps of a
+   * multi-step operation that must re-read already-committed state through a fresh context - e.g.
+   * before a step pessimistically re-reads (refreshes/locks) rows that an earlier,
+   * already-committed step left managed in a request-scoped context.
+   */
+  void clear();
 }

@@ -30,6 +30,9 @@ public interface ActorService extends AbstractBaseService<Actor, Long> {
 
   Optional<Actor> findByIdentity(String identityProvider, String subjectIdentifier);
 
+  /** The actor with this identity, only if it is provisioned and not disabled. */
+  Optional<Actor> findEnabledByIdentity(String identityProvider, String subjectIdentifier);
+
   List<Actor> findByEmail(String email);
 
   List<Actor> findByType(IdentityType type);

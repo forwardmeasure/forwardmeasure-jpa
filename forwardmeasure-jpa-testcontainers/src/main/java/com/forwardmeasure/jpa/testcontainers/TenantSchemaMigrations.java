@@ -16,6 +16,7 @@
  */
 package com.forwardmeasure.jpa.testcontainers;
 
+import com.forwardmeasure.jpa.liquibase.TenantIdentityMigrator;
 import com.forwardmeasure.jpa.liquibase.TenantSchemaMigrator;
 import com.forwardmeasure.jpa.tenancy.TenantId;
 import com.forwardmeasure.jpa.tenancy.TenantSchema;
@@ -23,8 +24,9 @@ import com.forwardmeasure.testcontainers.postgresql.PostgreSqlTestContainer;
 
 /**
  * The imperative counterpart to {@link WithMigratedTenantSchema}: creates a tenant schema and
- * applies the same migration chain (framework base, then every listed changelog, in order), but as
- * a plain method call rather than a JUnit 5 extension.
+ * applies the same migration chain (the database's shared identity schema, then every listed
+ * changelog into the tenant schema, in order), but as a plain method call rather than a JUnit 5
+ * extension.
  *
  * <p>{@link MigratedTenantSchemaExtension} itself calls this. It also exists for callers that
  * cannot use the annotation because their tenant id is fixed by something else first - a deployment
@@ -40,8 +42,9 @@ public final class TenantSchemaMigrations {
   private TenantSchemaMigrations() {}
 
   /**
-   * Creates the schema for {@code tenantId} and applies the framework base changelog followed by
-   * {@code changelogs}, in order.
+   * Migrates the database's identity schema (idempotent: once per database however many tenant
+   * schemas share it), then creates the schema for {@code tenantId} and applies {@code changelogs}
+   * into it, in order.
    *
    * @return the {@link TenantSchema} that was migrated, so callers that only had a {@link TenantId}
    *     don't need to re-derive it
@@ -51,7 +54,7 @@ public final class TenantSchemaMigrations {
     TenantSchema schema = TenantSchema.forTenant(tenantId);
     database.createSchema(schema.value());
     ClassLoader classLoader = TenantSchemaMigrations.class.getClassLoader();
-    new TenantSchemaMigrator(database.dataSource()).migrate(schema);
+    new TenantIdentityMigrator(database.dataSource(), classLoader).migrate();
     for (String changelog : changelogs) {
       new TenantSchemaMigrator(database.dataSource(), changelog, classLoader).migrate(schema);
     }
